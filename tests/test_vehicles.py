@@ -84,3 +84,36 @@ def test_delete_vehicle(client: TestClient):
     # 3. Confirm 404
     get_res = client.get(f"/api/v1/vehicles/{vehicle_id}")
     assert get_res.status_code == 404
+
+def test_vehicle_photo_upload_and_lifecycle(client: TestClient, sample_vehicle: Vehicle):
+    # 1. Initially vehicle has no photo
+    get_res = client.get(f"/api/v1/vehicles/{sample_vehicle.id}")
+    assert get_res.status_code == 200
+    assert get_res.json()["has_photo"] is False
+
+    photo_res = client.get(f"/api/v1/vehicles/{sample_vehicle.id}/photo")
+    assert photo_res.status_code == 404
+
+    # 2. Upload vehicle photo
+    fake_img = b"\xff\xd8\xff\xe0\x00\x10JFIF\x00\x01\x01\x01\x00`\x00`\x00\x00"
+    upload_res = client.post(
+        f"/api/v1/vehicles/{sample_vehicle.id}/photo",
+        files={"file": ("avalon.jpg", fake_img, "image/jpeg")}
+    )
+    assert upload_res.status_code == 200
+    assert upload_res.json()["has_photo"] is True
+
+    # 3. Retrieve vehicle photo
+    download_res = client.get(f"/api/v1/vehicles/{sample_vehicle.id}/photo")
+    assert download_res.status_code == 200
+    assert download_res.content == fake_img
+    assert download_res.headers["content-type"] == "image/jpeg"
+
+    # 4. Delete vehicle photo
+    del_photo_res = client.delete(f"/api/v1/vehicles/{sample_vehicle.id}/photo")
+    assert del_photo_res.status_code == 200
+    assert del_photo_res.json()["has_photo"] is False
+
+    # 5. Confirm photo is gone
+    check_res = client.get(f"/api/v1/vehicles/{sample_vehicle.id}/photo")
+    assert check_res.status_code == 404

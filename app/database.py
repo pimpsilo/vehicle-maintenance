@@ -29,6 +29,9 @@ def init_db() -> None:
             cursor = conn.connection.cursor()
             # 1. vehicles table migrations
             _add_column_if_missing(cursor, "vehicles", "ezpass_transponder", "VARCHAR")
+            _add_column_if_missing(cursor, "vehicles", "photo_data", "BLOB")
+            _add_column_if_missing(cursor, "vehicles", "photo_content_type", "VARCHAR")
+            _add_column_if_missing(cursor, "vehicles", "photo_filename", "VARCHAR")
             
             # 2. attachment migrations on documents, reference_docs, service_records, orders
             for tbl in ["vehicle_documents", "reference_documents", "service_records", "external_service_orders"]:

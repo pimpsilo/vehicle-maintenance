@@ -20,6 +20,9 @@ class Vehicle(VehicleBase, table=True):
     __tablename__ = "vehicles"
 
     id: Optional[int] = Field(default=None, primary_key=True)
+    photo_data: Optional[bytes] = Field(default=None)
+    photo_content_type: Optional[str] = Field(default=None)
+    photo_filename: Optional[str] = Field(default=None)
     created_at: datetime = Field(default_factory=get_utc_now)
     updated_at: datetime = Field(default_factory=get_utc_now)
 
@@ -38,6 +41,7 @@ class VehicleRead(VehicleBase):
     id: int
     created_at: datetime
     updated_at: datetime
+    has_photo: bool = False
 
 class VehicleUpdate(SQLModel):
     vin: Optional[str] = None

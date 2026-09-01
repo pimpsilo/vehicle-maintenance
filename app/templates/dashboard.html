@@ -375,6 +375,10 @@
                             <input type="number" id="editVehicleAnnualMiles" name="estimated_annual_mileage">
                         </div>
                         <div class="form-group full-width">
+                            <label>📷 Upload / Replace Vehicle Photo (JPG, PNG, WEBP)</label>
+                            <input type="file" id="editVehiclePhotoInput" name="photo" accept="image/*">
+                        </div>
+                        <div class="form-group full-width">
                             <label>Notes</label>
                             <textarea id="editVehicleNotes" name="notes" rows="2"></textarea>
                         </div>
@@ -692,6 +696,47 @@
             <!-- TAB 1: OVERVIEW -->
             <div id="pane-overview" class="tab-pane active">
                 {% if active_vehicle %}
+                <!-- Active Vehicle Photo (~120x120px) & Title Banner -->
+                <div class="card" style="display: flex; gap: 24px; align-items: center; padding: 18px 24px; margin-bottom: 24px; flex-wrap: wrap; background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);">
+                    <div style="position: relative; width: 120px; height: 120px; flex-shrink: 0;">
+                        {% if active_vehicle.photo_data %}
+                        <img src="/api/v1/vehicles/{{ active_vehicle.id }}/photo" alt="{{ active_vehicle.year }} {{ active_vehicle.model }}" style="width: 120px; height: 120px; object-fit: cover; border-radius: 12px; border: 2px solid var(--border); box-shadow: 0 4px 10px rgba(0,0,0,0.08);">
+                        {% else %}
+                        <div style="width: 120px; height: 120px; border-radius: 12px; background: #f1f5f9; border: 2px dashed #cbd5e1; display: flex; flex-direction: column; align-items: center; justify-content: center; color: var(--text-muted); font-size: 0.8rem; text-align: center; padding: 8px;">
+                            <span style="font-size: 2.2rem; margin-bottom: 4px;">🚗</span>
+                            <span style="font-weight: 500;">No Photo</span>
+                        </div>
+                        {% endif %}
+                        <label style="position: absolute; bottom: -6px; right: -6px; background: var(--primary); color: white; border-radius: 20px; padding: 4px 9px; font-size: 0.72rem; font-weight: 600; cursor: pointer; box-shadow: 0 2px 5px rgba(0,0,0,0.25); display: flex; align-items: center; gap: 4px;" title="Upload/Change Photo">
+                            📷 <span>{% if active_vehicle.photo_data %}Change{% else %}+ Add{% endif %}</span>
+                            <input type="file" style="display: none;" accept="image/*" onchange="uploadVehiclePhoto({{ active_vehicle.id }}, this)">
+                        </label>
+                    </div>
+                    <div style="flex: 1; min-width: 250px;">
+                        <div style="display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 10px;">
+                            <div>
+                                <h1 style="margin: 0; font-size: 1.65rem; color: var(--primary); font-weight: 700; line-height: 1.2;">{{ active_vehicle.year }} {{ active_vehicle.make }} {{ active_vehicle.model }}</h1>
+                                <div style="color: var(--accent); font-size: 1.05rem; font-weight: 600; margin-top: 4px;">{{ active_vehicle.trim or 'Fleet Vehicle' }}</div>
+                            </div>
+                            <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                                <button type="button" class="btn btn-sm btn-outline" onclick="openEditVehicleModal({{ active_vehicle.id }}, {{ active_vehicle.year }}, '{{ active_vehicle.make|replace("'", "\\'") }}', '{{ active_vehicle.model|replace("'", "\\'") }}', '{{ (active_vehicle.trim or '')|replace("'", "\\'") }}', '{{ (active_vehicle.license_plate or '')|replace("'", "\\'") }}', '{{ (active_vehicle.ezpass_transponder or '')|replace("'", "\\'") }}', {{ active_vehicle.estimated_annual_mileage }}, '{{ (active_vehicle.notes or '')|replace("'", "\\'") }}')">✏️ Edit Vehicle</button>
+                                {% if active_vehicle.photo_data %}
+                                <button type="button" class="btn btn-sm btn-outline" style="color: var(--danger); border-color: #fecaca;" onclick="deleteVehiclePhoto({{ active_vehicle.id }})" title="Remove Photo">🗑️ Delete Photo</button>
+                                {% endif %}
+                            </div>
+                        </div>
+                        <div style="display: flex; gap: 14px; margin-top: 12px; font-size: 0.85rem; color: var(--text-muted); flex-wrap: wrap; align-items: center;">
+                            <span>VIN: <code>{{ active_vehicle.vin }}</code></span>
+                            {% if active_vehicle.license_plate %}<span>Plate: <strong>{{ active_vehicle.license_plate }}</strong></span>{% endif %}
+                            {% if active_vehicle.ezpass_transponder %}<span class="badge badge-planned">EZ-Pass: {{ active_vehicle.ezpass_transponder }}</span>{% endif %}
+                            <span>Odometer: <strong style="color: var(--primary);">{{ "{:,}".format(active_vehicle.current_mileage) }} mi</strong></span>
+                            {% if active_vehicle.notes %}
+                            <span style="font-style: italic; color: #64748b;">• {{ active_vehicle.notes }}</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+
                 <div class="stats-grid">
                     <div class="stat-card">
                         <div class="label">Odometer Reading</div>
@@ -875,6 +920,10 @@
                             <div class="form-group">
                                 <label>Purchase Date</label>
                                 <input type="date" name="purchase_date">
+                            </div>
+                            <div class="form-group full-width">
+                                <label>📷 Vehicle Photo (Optional - JPG, PNG, WEBP)</label>
+                                <input type="file" name="photo" accept="image/*">
                             </div>
                             <div class="form-group full-width">
                                 <label>Notes</label>
@@ -1824,6 +1873,32 @@
             document.getElementById('editVehicleModal').classList.remove('open');
         }
 
+        async function uploadVehiclePhoto(vehicleId, input) {
+            if (!input.files || input.files.length === 0) return;
+            const fd = new FormData();
+            fd.append('file', input.files[0]);
+            showToast('Uploading vehicle photo...');
+            const res = await fetch(`/api/v1/vehicles/${vehicleId}/photo`, { method: 'POST', body: fd });
+            if (res.ok) {
+                showToast('Vehicle photo saved!');
+                setTimeout(() => window.location.reload(), 800);
+            } else {
+                const err = await res.json();
+                alert(err.detail || 'Failed to upload vehicle photo');
+            }
+        }
+
+        async function deleteVehiclePhoto(vehicleId) {
+            if (!confirm('Are you sure you want to remove this vehicle photo?')) return;
+            const res = await fetch(`/api/v1/vehicles/${vehicleId}/photo`, { method: 'DELETE' });
+            if (res.ok) {
+                showToast('Photo removed.');
+                setTimeout(() => window.location.reload(), 800);
+            } else {
+                alert('Failed to delete vehicle photo');
+            }
+        }
+
         async function submitEditVehicle(e) {
             e.preventDefault();
             const form = e.target;
@@ -1846,6 +1921,14 @@
             });
 
             if (res.ok) {
+                if (form.photo && form.photo.files.length > 0) {
+                    const fd = new FormData();
+                    fd.append('file', form.photo.files[0]);
+                    await fetch(`/api/v1/vehicles/${vId}/photo`, {
+                        method: 'POST',
+                        body: fd
+                    });
+                }
                 closeEditVehicleModal();
                 showToast('Vehicle updated successfully!');
                 setTimeout(() => window.location.reload(), 1000);
@@ -2120,6 +2203,14 @@
             });
             if (res.ok) {
                 const data = await res.json();
+                if (form.photo && form.photo.files.length > 0) {
+                    const fd = new FormData();
+                    fd.append('file', form.photo.files[0]);
+                    await fetch(`/api/v1/vehicles/${data.id}/photo`, {
+                        method: 'POST',
+                        body: fd
+                    });
+                }
                 showToast('Vehicle added successfully!');
                 setTimeout(() => window.location.href = '/dashboard?vehicle_id=' + data.id, 1000);
             } else {
