@@ -136,3 +136,42 @@ def test_update_service_record(client: TestClient, sample_vehicle: Vehicle):
     assert get_res.status_code == 200
     assert get_res.json()["id"] == rec_id
     assert get_res.json()["service_name"] == "Cabin & Engine Air Filter Replacement"
+
+def test_acknowledge_overdue_maintenance(client: TestClient, sample_vehicle: Vehicle):
+    # 1. Create a service definition with 10k interval
+    sdef_res = client.post(
+        "/api/v1/maintenance/definitions",
+        json={
+            "service_name": "Tire Rotation & Balance",
+            "interval_miles": 5000,
+            "interval_months": 6
+        }
+    )
+    assert sdef_res.status_code == 201
+    sdef_id = sdef_res.json()["id"]
+
+    # 2. Before acknowledge, next due mileage is at 5,000 miles, so for vehicle at 105,000 it is OVERDUE
+    forecast_before = client.get(f"/api/v1/maintenance/forecast/{sample_vehicle.id}").json()
+    f_item = next(f for f in forecast_before if f["service_definition_id"] == sdef_id)
+    assert f_item["status"] == "OVERDUE"
+
+    # 3. Acknowledge at current odometer (105,000 miles)
+    ack_res = client.post(
+        "/api/v1/maintenance/acknowledge",
+        json={
+            "vehicle_id": sample_vehicle.id,
+            "service_definition_id": sdef_id,
+            "completed_mileage": sample_vehicle.current_mileage,
+            "notes": "Acknowledged baseline without receipts"
+        }
+    )
+    assert ack_res.status_code == 201
+    assert ack_res.json()["completed_mileage"] == sample_vehicle.current_mileage
+    assert ack_res.json()["total_cost"] == 0.0
+
+    # 4. After acknowledge, next due is 105,000 + 5,000 = 110,000 miles -> status is now OK!
+    forecast_after = client.get(f"/api/v1/maintenance/forecast/{sample_vehicle.id}").json()
+    f_after_item = next(f for f in forecast_after if f["service_definition_id"] == sdef_id)
+    assert f_after_item["status"] == "OK"
+    assert f_after_item["next_due_mileage"] == 110000
+    assert f_after_item["miles_remaining"] == 5000

@@ -768,6 +768,7 @@
                                     <th>Miles Remaining</th>
                                     <th>Projected Due Date</th>
                                     <th>Status</th>
+                                    <th>Actions</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -785,6 +786,13 @@
                                         <span class="badge badge-due">DUE SOON</span>
                                         {% else %}
                                         <span class="badge badge-ok">OK</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if f.status.value != 'OK' %}
+                                        <button type="button" class="btn btn-sm btn-outline" style="color: #047857; border-color: #a7f3d0;" onclick="acknowledgeMaintenance({{ active_vehicle.id }}, {{ f.service_definition_id }}, '{{ f.service_name|replace("'", "\\'") }}', {{ active_vehicle.current_mileage }})" title="Acknowledge as done at current mileage">✓ Done / Reset</button>
+                                        {% else %}
+                                        <span style="color: var(--text-muted); font-size: 0.8rem;">Current</span>
                                         {% endif %}
                                     </td>
                                 </tr>
@@ -1087,6 +1095,7 @@
                                     <th>Next Due Mileage</th>
                                     <th>Projected Due Date</th>
                                     <th>Status</th>
+                                    <th>Actions</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -1111,6 +1120,16 @@
                                         {% else %}
                                         <span class="badge badge-ok">OK</span>
                                         {% endif %}
+                                    </td>
+                                    <td>
+                                        <div style="display: flex; gap: 6px;">
+                                            {% if f.status.value != 'OK' %}
+                                            <button type="button" class="btn btn-sm btn-outline" style="color: #047857; border-color: #a7f3d0;" onclick="acknowledgeMaintenance({{ active_vehicle.id }}, {{ f.service_definition_id }}, '{{ f.service_name|replace("'", "\\'") }}', {{ active_vehicle.current_mileage }})" title="Acknowledge as done at current odometer">✓ Done ({{ "{:,}".format(active_vehicle.current_mileage) }} mi)</button>
+                                            <button type="button" class="btn btn-sm btn-outline" onclick="customAcknowledgeMaintenance({{ active_vehicle.id }}, {{ f.service_definition_id }}, '{{ f.service_name|replace("'", "\\'") }}', {{ active_vehicle.current_mileage }})" title="Set custom completion mileage">✏️ Custom</button>
+                                            {% else %}
+                                            <button type="button" class="btn btn-sm btn-outline" onclick="customAcknowledgeMaintenance({{ active_vehicle.id }}, {{ f.service_definition_id }}, '{{ f.service_name|replace("'", "\\'") }}', {{ active_vehicle.current_mileage }})" title="Log or reset baseline">Reset</button>
+                                            {% endif %}
+                                        </div>
                                     </td>
                                 </tr>
                                 {% endfor %}
@@ -2232,6 +2251,61 @@
             const recId = document.getElementById('editServiceRecordId').value;
             closeEditServiceRecordModal();
             deleteServiceRecord(recId);
+        }
+
+        async function acknowledgeMaintenance(vehicleId, sdefId, sdefName, currentMileage) {
+            if (!confirm(`Acknowledge that "${sdefName}" was performed up to current odometer (${currentMileage.toLocaleString()} mi)?\n\nThis will reset the maintenance interval timer to "OK" starting from ${currentMileage.toLocaleString()} miles without requiring past receipts.`)) {
+                return;
+            }
+            const payload = {
+                vehicle_id: vehicleId,
+                service_definition_id: sdefId,
+                completed_mileage: currentMileage,
+                notes: "Acknowledged prior service / baseline reset (no receipt)"
+            };
+            const res = await fetch('/api/v1/maintenance/acknowledge', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+            if (res.ok) {
+                showToast(`"${sdefName}" acknowledged & interval reset!`);
+                setTimeout(() => window.location.reload(), 1000);
+            } else {
+                const err = await res.json();
+                alert(err.detail || 'Failed to acknowledge maintenance');
+            }
+        }
+
+        async function customAcknowledgeMaintenance(vehicleId, sdefId, sdefName, currentMileage) {
+            const inputMileage = prompt(`Enter the approximate mileage at which "${sdefName}" was performed:`, currentMileage);
+            if (inputMileage === null) return;
+            const mileage = parseInt(inputMileage);
+            if (isNaN(mileage) || mileage < 0) {
+                alert('Please enter a valid mileage number.');
+                return;
+            }
+            const notes = prompt(`Optional notes or details for "${sdefName}":`, `Service performed around ${mileage.toLocaleString()} mi (no receipt)`);
+            if (notes === null) return;
+
+            const payload = {
+                vehicle_id: vehicleId,
+                service_definition_id: sdefId,
+                completed_mileage: mileage,
+                notes: notes || "Acknowledged prior service"
+            };
+            const res = await fetch('/api/v1/maintenance/acknowledge', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+            if (res.ok) {
+                showToast(`"${sdefName}" acknowledged at ${mileage.toLocaleString()} mi!`);
+                setTimeout(() => window.location.reload(), 1000);
+            } else {
+                const err = await res.json();
+                alert(err.detail || 'Failed to acknowledge maintenance');
+            }
         }
 
         async function submitServiceRecord(e) {

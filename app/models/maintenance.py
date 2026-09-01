@@ -87,6 +87,13 @@ class ServiceRecordUpdate(SQLModel):
     service_shop_id: Optional[int] = None
     notes: Optional[str] = None
 
+class MaintenanceAcknowledgeRequest(SQLModel):
+    vehicle_id: int
+    service_definition_id: int
+    completed_mileage: Optional[int] = None
+    completed_date: Optional[date] = None
+    notes: Optional[str] = "Acknowledged prior service / baseline reset (no receipt)"
+
 class MaintenanceForecast(SQLModel):
     service_definition_id: int
     service_name: str

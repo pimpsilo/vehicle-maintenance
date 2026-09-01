@@ -11,7 +11,9 @@ from app.models.maintenance import (
     ServiceRecordCreate,
     ServiceRecordRead,
     ServiceRecordUpdate,
+    MaintenanceAcknowledgeRequest,
     MaintenanceForecast,
+    PerformedByType,
 )
 from app.models.vehicle import Vehicle
 from app.services.interval_engine import MaintenanceIntervalEngine
@@ -62,6 +64,40 @@ def get_maintenance_forecast(
         raise HTTPException(status_code=404, detail="Vehicle not found.")
     
     return MaintenanceIntervalEngine.calculate_forecasts(session, vehicle_id=vehicle_id)
+
+@router.post("/acknowledge", response_model=ServiceRecordRead, status_code=201)
+def acknowledge_maintenance_item(
+    payload: MaintenanceAcknowledgeRequest,
+    session: Session = Depends(get_session)
+):
+    vehicle = session.get(Vehicle, payload.vehicle_id)
+    if not vehicle:
+        raise HTTPException(status_code=404, detail="Vehicle not found.")
+    
+    sdef = session.get(ServiceDefinition, payload.service_definition_id)
+    if not sdef:
+        raise HTTPException(status_code=404, detail="Service definition not found.")
+    
+    mileage = payload.completed_mileage if payload.completed_mileage is not None else vehicle.current_mileage
+    service_date = payload.completed_date if payload.completed_date is not None else date.today()
+    notes = payload.notes or "Acknowledged prior service / baseline reset (no receipt)"
+    
+    record = ServiceRecord(
+        vehicle_id=vehicle.id,
+        service_definition_id=sdef.id,
+        service_name=sdef.service_name,
+        completed_date=service_date,
+        completed_mileage=mileage,
+        performed_by_type=PerformedByType.DIY,
+        total_cost=0.0,
+        labor_cost=0.0,
+        parts_cost=0.0,
+        notes=notes
+    )
+    session.add(record)
+    session.commit()
+    session.refresh(record)
+    return _enrich_record_read(record)
 
 @router.get("/records", response_model=List[ServiceRecordRead])
 def list_service_records(
