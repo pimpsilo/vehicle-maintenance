@@ -10,6 +10,7 @@ from app.models.maintenance import (
     ServiceRecord,
     ServiceRecordCreate,
     ServiceRecordRead,
+    ServiceRecordUpdate,
     MaintenanceForecast,
 )
 from app.models.vehicle import Vehicle
@@ -93,6 +94,42 @@ def create_service_record(payload: ServiceRecordCreate, session: Session = Depen
     record_dict = payload.model_dump()
     record_dict["total_cost"] = total_cost
     record = ServiceRecord(**record_dict)
+
+    session.add(record)
+    session.commit()
+    session.refresh(record)
+    return _enrich_record_read(record)
+
+@router.get("/records/{record_id}", response_model=ServiceRecordRead)
+def get_service_record(record_id: int, session: Session = Depends(get_session)):
+    record = session.get(ServiceRecord, record_id)
+    if not record:
+        raise HTTPException(status_code=404, detail="Service record not found.")
+    return _enrich_record_read(record)
+
+@router.put("/records/{record_id}", response_model=ServiceRecordRead)
+def update_service_record(
+    record_id: int,
+    payload: ServiceRecordUpdate,
+    session: Session = Depends(get_session)
+):
+    record = session.get(ServiceRecord, record_id)
+    if not record:
+        raise HTTPException(status_code=404, detail="Service record not found.")
+    
+    update_data = payload.model_dump(exclude_unset=True)
+    for k, v in update_data.items():
+        setattr(record, k, v)
+
+    if ("labor_cost" in update_data or "parts_cost" in update_data) and "total_cost" not in update_data:
+        record.total_cost = (record.labor_cost or 0.0) + (record.parts_cost or 0.0)
+
+    # Auto-update vehicle mileage if new completed_mileage is higher
+    if record.completed_mileage:
+        vehicle = session.get(Vehicle, record.vehicle_id)
+        if vehicle and record.completed_mileage > vehicle.current_mileage:
+            vehicle.current_mileage = record.completed_mileage
+            session.add(vehicle)
 
     session.add(record)
     session.commit()

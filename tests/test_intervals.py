@@ -94,3 +94,45 @@ def test_maintenance_api_endpoints(client: TestClient, sample_vehicle: Vehicle):
     assert forecast_res.status_code == 200
     forecast_list = forecast_res.json()
     assert any(f["service_name"] == "Brake Fluid Flush" for f in forecast_list)
+
+def test_update_service_record(client: TestClient, sample_vehicle: Vehicle):
+    # 1. Create a service record
+    create_res = client.post(
+        "/api/v1/maintenance/records",
+        json={
+            "vehicle_id": sample_vehicle.id,
+            "service_name": "Cabin Air Filter Replacement",
+            "completed_date": date.today().isoformat(),
+            "completed_mileage": 105100,
+            "performed_by_type": "DIY",
+            "parts_cost": 15.00
+        }
+    )
+    assert create_res.status_code == 201
+    rec_id = create_res.json()["id"]
+    assert create_res.json()["service_name"] == "Cabin Air Filter Replacement"
+    assert create_res.json()["total_cost"] == 15.00
+
+    # 2. Update the record (change service name, mileage, labor cost, notes)
+    update_res = client.put(
+        f"/api/v1/maintenance/records/{rec_id}",
+        json={
+            "service_name": "Cabin & Engine Air Filter Replacement",
+            "completed_mileage": 105200,
+            "parts_cost": 30.00,
+            "labor_cost": 0.00,
+            "notes": "Replaced both filters with OEM Denso elements"
+        }
+    )
+    assert update_res.status_code == 200
+    updated = update_res.json()
+    assert updated["service_name"] == "Cabin & Engine Air Filter Replacement"
+    assert updated["completed_mileage"] == 105200
+    assert updated["total_cost"] == 30.00
+    assert updated["notes"] == "Replaced both filters with OEM Denso elements"
+
+    # 3. Retrieve individual record
+    get_res = client.get(f"/api/v1/maintenance/records/{rec_id}")
+    assert get_res.status_code == 200
+    assert get_res.json()["id"] == rec_id
+    assert get_res.json()["service_name"] == "Cabin & Engine Air Filter Replacement"

@@ -76,6 +76,17 @@ class ServiceRecordRead(ServiceRecordBase):
     created_at: datetime
     has_attachment: bool = False
 
+class ServiceRecordUpdate(SQLModel):
+    service_name: Optional[str] = None
+    completed_date: Optional[date] = None
+    completed_mileage: Optional[int] = None
+    performed_by_type: Optional[PerformedByType] = None
+    total_cost: Optional[float] = None
+    labor_cost: Optional[float] = None
+    parts_cost: Optional[float] = None
+    service_shop_id: Optional[int] = None
+    notes: Optional[str] = None
+
 class MaintenanceForecast(SQLModel):
     service_definition_id: int
     service_name: str

@@ -516,6 +516,70 @@
         </div>
     </div>
 
+    <!-- Edit Service Record Modal -->
+    <div id="editServiceRecordModal" class="modal-overlay">
+        <div class="modal-content">
+            <div class="modal-header">
+                <div class="modal-title">✏️ Edit Completed Maintenance Record</div>
+                <button type="button" class="modal-close" onclick="closeEditServiceRecordModal()">&times;</button>
+            </div>
+            <form id="editServiceRecordForm" onsubmit="submitEditServiceRecord(event)">
+                <div class="modal-body">
+                    <input type="hidden" id="editServiceRecordId" name="record_id">
+                    <div class="form-grid">
+                        <div class="form-group full-width">
+                            <label>Service Performed *</label>
+                            <input type="text" id="editServiceRecordName" name="service_name" required placeholder="e.g. Engine Oil & Filter Change (0W-20)">
+                        </div>
+                        <div class="form-group">
+                            <label>Completed Mileage *</label>
+                            <input type="number" id="editServiceRecordMileage" name="completed_mileage" required min="0">
+                        </div>
+                        <div class="form-group">
+                            <label>Service Date *</label>
+                            <input type="date" id="editServiceRecordDate" name="completed_date" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Performed By</label>
+                            <select id="editServiceRecordPerformedBy" name="performed_by_type">
+                                <option value="DIY">DIY (Self)</option>
+                                <option value="EXTERNAL_SHOP">Independent Mechanic Shop</option>
+                                <option value="DEALERSHIP">Toyota Dealership</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Labor Cost ($)</label>
+                            <input type="number" step="0.01" id="editServiceRecordLabor" name="labor_cost" value="0.00">
+                        </div>
+                        <div class="form-group">
+                            <label>Parts Cost ($)</label>
+                            <input type="number" step="0.01" id="editServiceRecordParts" name="parts_cost" value="0.00">
+                        </div>
+                        <div class="form-group">
+                            <label>Total Cost ($)</label>
+                            <input type="number" step="0.01" id="editServiceRecordTotal" name="total_cost">
+                        </div>
+                        <div class="form-group full-width">
+                            <label>📎 Attach / Replace Receipt or Invoice (PDF, JPG, PNG, XLS, DOC, etc.)</label>
+                            <input type="file" id="editServiceRecordFile" name="attachment" accept=".pdf,.png,.jpg,.jpeg,.tif,.tiff,.xls,.xlsx,.doc,.docx,.txt,.rtf,.html,.md">
+                        </div>
+                        <div class="form-group full-width">
+                            <label>Notes & Parts Used</label>
+                            <textarea id="editServiceRecordNotes" name="notes" rows="2" placeholder="Part numbers, oil brand, torque specs..."></textarea>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer" style="display: flex; justify-content: space-between;">
+                    <button type="button" class="btn btn-danger" onclick="deleteServiceRecordFromModal()">🗑️ Delete Record</button>
+                    <div style="display: flex; gap: 10px;">
+                        <button type="button" class="btn btn-outline" onclick="closeEditServiceRecordModal()">Cancel</button>
+                        <button type="submit" class="btn btn-success">Save Record Changes</button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+
     <!-- Sidebar -->
     <div class="sidebar">
         <div class="sidebar-brand">
@@ -1027,7 +1091,10 @@
                                     </td>
                                     <td style="color: var(--text-muted);">{{ r.notes or 'None' }}</td>
                                     <td>
-                                        <button class="btn btn-sm btn-danger" onclick="deleteServiceRecord({{ r.id }})">🗑️</button>
+                                        <div style="display: flex; gap: 6px;">
+                                            <button type="button" class="btn btn-sm btn-outline" onclick="openEditServiceRecordModal({{ r.id }}, '{{ r.service_name|replace("'", "\\'") }}', {{ r.completed_mileage }}, '{{ r.completed_date.isoformat() }}', '{{ r.performed_by_type.value }}', {{ r.labor_cost }}, {{ r.parts_cost }}, {{ r.total_cost }}, '{{ (r.notes or '')|replace("'", "\\'") }}')">✏️ Edit</button>
+                                            <button type="button" class="btn btn-sm btn-danger" onclick="deleteServiceRecord({{ r.id }})" title="Delete Record">🗑️</button>
+                                        </div>
                                     </td>
                                 </tr>
                                 {% endfor %}
@@ -1973,6 +2040,72 @@
             } else {
                 alert('Failed to delete document');
             }
+        }
+
+        /* --- Service Record Modal & CRUD --- */
+        function openEditServiceRecordModal(id, name, mileage, date, performedBy, labor, parts, total, notes) {
+            document.getElementById('editServiceRecordId').value = id;
+            document.getElementById('editServiceRecordName').value = name || '';
+            document.getElementById('editServiceRecordMileage').value = mileage || '';
+            document.getElementById('editServiceRecordDate').value = date || '';
+            document.getElementById('editServiceRecordPerformedBy').value = performedBy || 'DIY';
+            document.getElementById('editServiceRecordLabor').value = (labor !== undefined && labor !== null) ? labor : 0;
+            document.getElementById('editServiceRecordParts').value = (parts !== undefined && parts !== null) ? parts : 0;
+            document.getElementById('editServiceRecordTotal').value = (total !== undefined && total !== null) ? total : ((labor || 0) + (parts || 0));
+            document.getElementById('editServiceRecordNotes').value = notes || '';
+            document.getElementById('editServiceRecordModal').classList.add('open');
+        }
+
+        function closeEditServiceRecordModal() {
+            document.getElementById('editServiceRecordModal').classList.remove('open');
+        }
+
+        async function submitEditServiceRecord(e) {
+            e.preventDefault();
+            const form = e.target;
+            const recId = document.getElementById('editServiceRecordId').value;
+            const labor = parseFloat(form.labor_cost.value || 0);
+            const parts = parseFloat(form.parts_cost.value || 0);
+            const total = form.total_cost.value ? parseFloat(form.total_cost.value) : (labor + parts);
+            const payload = {
+                service_name: form.service_name.value,
+                completed_mileage: parseInt(form.completed_mileage.value),
+                completed_date: form.completed_date.value,
+                performed_by_type: form.performed_by_type.value,
+                labor_cost: labor,
+                parts_cost: parts,
+                total_cost: total,
+                notes: form.notes.value || null
+            };
+
+            const res = await fetch(`/api/v1/maintenance/records/${recId}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+
+            if (res.ok) {
+                if (form.attachment && form.attachment.files.length > 0) {
+                    const fd = new FormData();
+                    fd.append('file', form.attachment.files[0]);
+                    await fetch(`/api/v1/maintenance/records/${recId}/attachment`, {
+                        method: 'POST',
+                        body: fd
+                    });
+                }
+                closeEditServiceRecordModal();
+                showToast('Service record updated successfully!');
+                setTimeout(() => window.location.reload(), 1000);
+            } else {
+                const err = await res.json();
+                alert(err.detail || 'Error updating service record');
+            }
+        }
+
+        function deleteServiceRecordFromModal() {
+            const recId = document.getElementById('editServiceRecordId').value;
+            closeEditServiceRecordModal();
+            deleteServiceRecord(recId);
         }
 
         async function submitServiceRecord(e) {
