@@ -580,6 +580,70 @@
         </div>
     </div>
 
+    <!-- Edit Vehicle Document Modal -->
+    <div id="editDocumentModal" class="modal-overlay">
+        <div class="modal-content">
+            <div class="modal-header">
+                <div class="modal-title">✏️ Edit Tracked Document / Policy</div>
+                <button type="button" class="modal-close" onclick="closeEditDocumentModal()">&times;</button>
+            </div>
+            <form id="editDocumentForm" onsubmit="submitEditDocument(event)">
+                <div class="modal-body">
+                    <input type="hidden" id="editDocId" name="document_id">
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label>Document Type *</label>
+                            <select id="editDocType" name="doc_type" required>
+                                <option value="REGISTRATION">State Registration</option>
+                                <option value="INSURANCE">Insurance Policy</option>
+                                <option value="EMISSIONS_INSPECTION">Smog / Emissions Inspection</option>
+                                <option value="SAFETY_INSPECTION">Safety Inspection</option>
+                                <option value="TITLE">Vehicle Title</option>
+                                <option value="WARRANTY">Extended Warranty</option>
+                                <option value="OTHER">Other Document</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Policy / Document Number *</label>
+                            <input type="text" id="editDocNumber" name="document_number" required placeholder="e.g. REG-2024-8891">
+                        </div>
+                        <div class="form-group">
+                            <label>Issuer / Provider *</label>
+                            <input type="text" id="editDocIssuer" name="issuer" required placeholder="e.g. Department of Motor Vehicles (DMV)">
+                        </div>
+                        <div class="form-group">
+                            <label>Effective Date *</label>
+                            <input type="date" id="editDocEffectiveDate" name="effective_date" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Expiration Date *</label>
+                            <input type="date" id="editDocExpirationDate" name="expiration_date" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Alert Lead Window (Days)</label>
+                            <input type="number" id="editDocLeadAlertDays" name="lead_alert_days" value="30">
+                        </div>
+                        <div class="form-group full-width">
+                            <label>📎 Attach / Replace Document File (PDF, Images, Word, Sheets, etc.)</label>
+                            <input type="file" id="editDocFile" name="attachment" accept=".pdf,.png,.jpg,.jpeg,.tif,.tiff,.xls,.xlsx,.doc,.docx,.txt,.rtf,.html,.md">
+                        </div>
+                        <div class="form-group full-width">
+                            <label>Notes</label>
+                            <textarea id="editDocNotes" name="notes" rows="2" placeholder="Policy details, deductible, roadside assistance..."></textarea>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer" style="display: flex; justify-content: space-between;">
+                    <button type="button" class="btn btn-danger" onclick="deleteDocumentFromModal()">🗑️ Delete Document</button>
+                    <div style="display: flex; gap: 10px;">
+                        <button type="button" class="btn btn-outline" onclick="closeEditDocumentModal()">Cancel</button>
+                        <button type="submit" class="btn btn-success">Save Document Changes</button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+
     <!-- Sidebar -->
     <div class="sidebar">
         <div class="sidebar-brand">
@@ -946,6 +1010,7 @@
                                     </td>
                                     <td>
                                         <div style="display: flex; gap: 6px;">
+                                            <button type="button" class="btn btn-sm btn-outline" onclick="openEditDocumentModal({{ d.id }}, '{{ d.doc_type.value }}', '{{ d.document_number|replace("'", "\\'") }}', '{{ d.issuer|replace("'", "\\'") }}', '{{ d.effective_date.isoformat() }}', '{{ d.expiration_date.isoformat() }}', {{ d.lead_alert_days }}, '{{ (d.notes or '')|replace("'", "\\'") }}')">✏️ Edit</button>
                                             <button class="btn btn-sm btn-outline" onclick="syncDocToCalendar({{ d.id }})">📅 GCal</button>
                                             <button class="btn btn-sm btn-danger" onclick="deleteDocument({{ d.id }})" title="Delete Document">🗑️</button>
                                         </div>
@@ -1980,6 +2045,67 @@
                 const err = await res.json();
                 alert(err.detail || 'Error updating odometer');
             }
+        }
+
+        /* --- Vehicle Document Modal & CRUD --- */
+        function openEditDocumentModal(id, type, number, issuer, effectiveDate, expirationDate, leadDays, notes) {
+            document.getElementById('editDocId').value = id;
+            document.getElementById('editDocType').value = type || 'REGISTRATION';
+            document.getElementById('editDocNumber').value = number || '';
+            document.getElementById('editDocIssuer').value = issuer || '';
+            document.getElementById('editDocEffectiveDate').value = effectiveDate || '';
+            document.getElementById('editDocExpirationDate').value = expirationDate || '';
+            document.getElementById('editDocLeadAlertDays').value = leadDays || 30;
+            document.getElementById('editDocNotes').value = notes || '';
+            document.getElementById('editDocumentModal').classList.add('open');
+        }
+
+        function closeEditDocumentModal() {
+            document.getElementById('editDocumentModal').classList.remove('open');
+        }
+
+        async function submitEditDocument(e) {
+            e.preventDefault();
+            const form = e.target;
+            const docId = document.getElementById('editDocId').value;
+            const payload = {
+                doc_type: form.doc_type.value,
+                document_number: form.document_number.value,
+                issuer: form.issuer.value,
+                effective_date: form.effective_date.value,
+                expiration_date: form.expiration_date.value,
+                lead_alert_days: parseInt(form.lead_alert_days.value || 30),
+                notes: form.notes.value || null
+            };
+
+            const res = await fetch(`/api/v1/documents/${docId}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+
+            if (res.ok) {
+                if (form.attachment && form.attachment.files.length > 0) {
+                    const fd = new FormData();
+                    fd.append('file', form.attachment.files[0]);
+                    await fetch(`/api/v1/documents/${docId}/attachment`, {
+                        method: 'POST',
+                        body: fd
+                    });
+                }
+                closeEditDocumentModal();
+                showToast('Document updated successfully!');
+                setTimeout(() => window.location.reload(), 1000);
+            } else {
+                const err = await res.json();
+                alert(err.detail || 'Error updating document');
+            }
+        }
+
+        function deleteDocumentFromModal() {
+            const docId = document.getElementById('editDocId').value;
+            closeEditDocumentModal();
+            deleteDocument(docId);
         }
 
         async function submitDocument(e) {
