@@ -1,7 +1,7 @@
 from datetime import date, datetime, timezone
 from pathlib import Path
 from fastapi import APIRouter, Depends, HTTPException, Request
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 from sqlmodel import Session, select
 from app.database import get_session
@@ -17,6 +17,26 @@ router = APIRouter(tags=["Mobile Vehicle Portal"])
 TEMPLATE_DIR = Path(__file__).resolve().parent.parent / "templates"
 templates = Jinja2Templates(directory=str(TEMPLATE_DIR))
 
+@router.get("/v", response_class=HTMLResponse)
+def render_mobile_fleet_hub(
+    request: Request,
+    session: Session = Depends(get_session)
+):
+    vehicles = session.exec(select(Vehicle).order_by(Vehicle.id.asc())).all()
+    if not vehicles:
+        return RedirectResponse(url="/dashboard")
+    
+    if len(vehicles) == 1:
+        return RedirectResponse(url=f"/v/{vehicles[0].id}")
+    
+    return templates.TemplateResponse(
+        request=request,
+        name="mobile_fleet_hub.html",
+        context={
+            "vehicles": vehicles,
+        }
+    )
+
 @router.get("/v/{vehicle_id}", response_class=HTMLResponse)
 def render_mobile_portal(
     request: Request,
@@ -26,6 +46,8 @@ def render_mobile_portal(
     vehicle = session.get(Vehicle, vehicle_id)
     if not vehicle:
         raise HTTPException(status_code=404, detail="Vehicle not found.")
+
+    all_vehicles = session.exec(select(Vehicle).order_by(Vehicle.id.asc())).all()
 
     # Consumables
     consumables = session.exec(
@@ -50,6 +72,7 @@ def render_mobile_portal(
         name="mobile_vehicle.html",
         context={
             "vehicle": vehicle,
+            "all_vehicles": all_vehicles,
             "consumables": consumables,
             "documents": documents,
             "forecasts": forecasts,

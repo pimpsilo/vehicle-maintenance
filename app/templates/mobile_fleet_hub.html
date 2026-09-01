@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>My Garage & Fleet - Vehicle Tracker</title>
+    <style>
+        :root {
+            --primary: #1e3a8a;
+            --primary-light: #3b82f6;
+            --success: #059669;
+            --warning: #d97706;
+            --danger: #dc2626;
+            --bg: #f8fafc;
+            --card-bg: #ffffff;
+            --text: #0f172a;
+            --text-muted: #64748b;
+            --border: #e2e8f0;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--bg);
+            color: var(--text);
+            padding: 16px;
+            line-height: 1.5;
+        }
+        .top-nav {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 16px;
+        }
+        .header-title {
+            font-size: 1.25rem;
+            font-weight: 800;
+            color: var(--primary);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .btn-dash {
+            background: white;
+            border: 1px solid var(--border);
+            padding: 6px 12px;
+            border-radius: 8px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            color: var(--text-muted);
+            text-decoration: none;
+        }
+        .vehicle-card {
+            background: var(--card-bg);
+            border-radius: 16px;
+            padding: 16px;
+            margin-bottom: 14px;
+            border: 1px solid var(--border);
+            box-shadow: 0 3px 8px rgba(0,0,0,0.04);
+            display: flex;
+            gap: 16px;
+            align-items: center;
+            text-decoration: none;
+            color: inherit;
+            transition: transform 0.1s, box-shadow 0.1s;
+        }
+        .vehicle-card:active {
+            transform: scale(0.98);
+        }
+        .thumb {
+            width: 72px;
+            height: 72px;
+            border-radius: 12px;
+            object-fit: cover;
+            border: 1px solid var(--border);
+            flex-shrink: 0;
+        }
+        .thumb-placeholder {
+            width: 72px;
+            height: 72px;
+            border-radius: 12px;
+            background: #f1f5f9;
+            border: 1px dashed #cbd5e1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.8rem;
+            color: var(--text-muted);
+            flex-shrink: 0;
+        }
+        .info { flex: 1; min-width: 0; }
+        .name { font-size: 1.05rem; font-weight: 700; color: var(--primary); line-height: 1.2; }
+        .trim { font-size: 0.8rem; color: var(--text-muted); margin-top: 2px; }
+        .meta { display: flex; gap: 8px; margin-top: 6px; font-size: 0.78rem; color: #475569; flex-wrap: wrap; }
+        .arrow { font-size: 1.2rem; color: #94a3b8; padding-right: 4px; }
+    </style>
+</head>
+<body>
+    <div class="top-nav">
+        <div class="header-title">🚗 My Vehicle Fleet</div>
+        <a href="/dashboard" class="btn-dash">📊 Desktop</a>
+    </div>
+
+    <div class="fleet-list">
+        {% for v in vehicles %}
+        <a href="/v/{{ v.id }}" class="vehicle-card">
+            {% if v.photo_data %}
+            <img src="/api/v1/vehicles/{{ v.id }}/photo" alt="{{ v.year }} {{ v.model }}" class="thumb">
+            {% else %}
+            <div class="thumb-placeholder">🚗</div>
+            {% endif %}
+            <div class="info">
+                <div class="name">{{ v.year }} {{ v.make }} {{ v.model }}</div>
+                <div class="trim">{{ v.trim or 'Fleet Vehicle' }}</div>
+                <div class="meta">
+                    <span><strong>{{ "{:,}".format(v.current_mileage) }}</strong> mi</span>
+                    {% if v.license_plate %}<span>• {{ v.license_plate }}</span>{% endif %}
+                    {% if v.ezpass_transponder %}<span>• EZ-Pass</span>{% endif %}
+                </div>
+            </div>
+            <div class="arrow">&rsaquo;</div>
+        </a>
+        {% endfor %}
+    </div>
+</body>
+</html>

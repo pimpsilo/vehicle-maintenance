@@ -40,3 +40,30 @@ def test_mobile_portal_view_and_quick_updates(client: TestClient, sample_vehicle
     )
     assert svc_res.status_code == 200
     assert "created successfully" in svc_res.json()["message"]
+
+def test_mobile_fleet_hub_and_vehicle_switching(client: TestClient, sample_vehicle: Vehicle):
+    # 1. Create a second vehicle in the fleet
+    client.post(
+        "/api/v1/vehicles",
+        json={
+            "vin": "1HGCR2F8XHA000002",
+            "year": 2017,
+            "make": "Honda",
+            "model": "Accord",
+            "current_mileage": 62000
+        }
+    )
+
+    # 2. Test /v fleet hub endpoint
+    hub_res = client.get("/v")
+    assert hub_res.status_code == 200
+    assert "My Vehicle Fleet" in hub_res.text
+    assert "Toyota Avalon" in hub_res.text
+    assert "Honda Accord" in hub_res.text
+
+    # 3. Test /v/{id} renders garage drawer with all vehicles
+    portal_res = client.get(f"/v/{sample_vehicle.id}")
+    assert portal_res.status_code == 200
+    assert "Switch Vehicle" in portal_res.text
+    assert "My Vehicle Garage" in portal_res.text
+    assert "Honda Accord" in portal_res.text

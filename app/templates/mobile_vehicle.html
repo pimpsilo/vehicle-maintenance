@@ -23,12 +23,46 @@
             background-color: var(--bg);
             color: var(--text);
             padding: 16px;
+            padding-bottom: 40px;
             line-height: 1.5;
+        }
+        .top-nav {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+        }
+        .garage-switch-btn {
+            background: white;
+            border: 1.5px solid #cbd5e1;
+            padding: 7px 14px;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            font-weight: 700;
+            color: var(--primary);
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            cursor: pointer;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.04);
+        }
+        .garage-switch-btn:active {
+            background: #f1f5f9;
+        }
+        .btn-dash {
+            background: white;
+            border: 1px solid var(--border);
+            padding: 6px 12px;
+            border-radius: 8px;
+            font-size: 0.78rem;
+            font-weight: 600;
+            color: var(--text-muted);
+            text-decoration: none;
         }
         .header {
             background: linear-gradient(135deg, var(--primary), #1e293b);
             color: white;
-            padding: 20px;
+            padding: 18px 20px;
             border-radius: 16px;
             margin-bottom: 16px;
             box-shadow: 0 4px 12px rgba(0,0,0,0.12);
@@ -173,11 +207,125 @@
             text-align: center;
         }
         .toast-success { background: #dcfce7; color: #166534; }
+
+        /* --- Mobile Garage Bottom-Sheet Drawer --- */
+        .drawer-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(15, 23, 42, 0.6);
+            backdrop-filter: blur(4px);
+            z-index: 999;
+            opacity: 0;
+            transition: opacity 0.25s ease;
+        }
+        .drawer-overlay.open {
+            display: block;
+            opacity: 1;
+        }
+        .drawer-sheet {
+            position: fixed;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: white;
+            border-radius: 20px 20px 0 0;
+            padding: 16px 20px 32px 20px;
+            z-index: 1000;
+            max-height: 80vh;
+            overflow-y: auto;
+            transform: translateY(100%);
+            transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+            box-shadow: 0 -10px 25px rgba(0,0,0,0.15);
+        }
+        .drawer-overlay.open .drawer-sheet {
+            transform: translateY(0);
+        }
+        .drawer-handle {
+            width: 40px;
+            height: 4px;
+            background: #cbd5e1;
+            border-radius: 4px;
+            margin: 0 auto 16px auto;
+        }
+        .drawer-title-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 16px;
+        }
+        .drawer-title {
+            font-size: 1.15rem;
+            font-weight: 800;
+            color: var(--primary);
+        }
+        .drawer-close {
+            background: #f1f5f9;
+            border: none;
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            font-size: 1rem;
+            font-weight: 700;
+            color: var(--text-muted);
+            cursor: pointer;
+        }
+        .garage-item {
+            display: flex;
+            gap: 14px;
+            align-items: center;
+            padding: 12px;
+            border-radius: 12px;
+            border: 1px solid var(--border);
+            margin-bottom: 10px;
+            text-decoration: none;
+            color: inherit;
+            transition: background-color 0.1s;
+        }
+        .garage-item.active {
+            background: #eff6ff;
+            border-color: #93c5fd;
+        }
+        .garage-thumb {
+            width: 52px;
+            height: 52px;
+            border-radius: 10px;
+            object-fit: cover;
+            border: 1px solid var(--border);
+            flex-shrink: 0;
+        }
+        .garage-thumb-placeholder {
+            width: 52px;
+            height: 52px;
+            border-radius: 10px;
+            background: #f1f5f9;
+            border: 1px dashed #cbd5e1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.4rem;
+            color: var(--text-muted);
+            flex-shrink: 0;
+        }
     </style>
 </head>
 <body>
     <div id="toast" class="toast toast-success"></div>
 
+    <!-- Top Navigation Bar -->
+    <div class="top-nav">
+        <button type="button" class="garage-switch-btn" onclick="openGarageDrawer()">
+            <span>🚗</span>
+            <span>Switch Vehicle ({{ all_vehicles|length if all_vehicles else 1 }})</span>
+            <span style="font-size: 0.7rem; color: #64748b;">▾</span>
+        </button>
+        <a href="/dashboard" class="btn-dash">📊 Desktop</a>
+    </div>
+
+    <!-- Active Vehicle Header Banner -->
     <div class="header">
         <div style="display: flex; gap: 16px; align-items: center; margin-bottom: 12px;">
             <div class="photo-wrapper">
@@ -194,7 +342,7 @@
                     <input type="file" style="display: none;" accept="image/*" capture="environment" onchange="uploadMobilePhoto(this)">
                 </label>
             </div>
-            <div style="flex: 1;">
+            <div style="flex: 1;" onclick="openGarageDrawer()" style="cursor: pointer;">
                 <h1>{{ vehicle.year }} {{ vehicle.make }} {{ vehicle.model }}</h1>
                 <div style="color: #93c5fd; font-size: 0.85rem; font-weight: 600; margin-top: 2px;">{{ vehicle.trim or 'Fleet Vehicle' }}</div>
                 <div class="vin" style="margin-top: 4px;">VIN: {{ vehicle.vin }}</div>
@@ -312,12 +460,58 @@
         </form>
     </div>
 
+    <!-- Mobile Garage Drawer Bottom Sheet -->
+    <div id="garageDrawer" class="drawer-overlay" onclick="closeGarageDrawerOnBackdrop(event)">
+        <div class="drawer-sheet">
+            <div class="drawer-handle"></div>
+            <div class="drawer-title-row">
+                <div class="drawer-title">🚗 My Vehicle Garage</div>
+                <button type="button" class="drawer-close" onclick="closeGarageDrawer()">&times;</button>
+            </div>
+            <div class="garage-list">
+                {% for v in all_vehicles %}
+                <a href="/v/{{ v.id }}" class="garage-item {% if v.id == vehicle.id %}active{% endif %}">
+                    {% if v.photo_data %}
+                    <img src="/api/v1/vehicles/{{ v.id }}/photo" alt="{{ v.year }} {{ v.model }}" class="garage-thumb">
+                    {% else %}
+                    <div class="garage-thumb-placeholder">🚗</div>
+                    {% endif %}
+                    <div style="flex: 1; min-width: 0;">
+                        <div style="font-weight: 700; font-size: 0.95rem; color: var(--primary);">{{ v.year }} {{ v.make }} {{ v.model }}</div>
+                        <div style="font-size: 0.78rem; color: var(--text-muted);">{{ v.trim or 'Fleet Vehicle' }}</div>
+                        <div style="font-size: 0.78rem; margin-top: 3px;"><strong>{{ "{:,}".format(v.current_mileage) }}</strong> mi {% if v.license_plate %}• {{ v.license_plate }}{% endif %}</div>
+                    </div>
+                    {% if v.id == vehicle.id %}
+                    <div style="color: var(--success); font-weight: 700; font-size: 0.85rem;">✓ Active</div>
+                    {% else %}
+                    <div style="color: #94a3b8; font-size: 1.1rem;">&rsaquo;</div>
+                    {% endif %}
+                </a>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+
     <script>
         function showToast(msg) {
             const t = document.getElementById('toast');
             t.innerText = msg;
             t.style.display = 'block';
             setTimeout(() => { t.style.display = 'none'; }, 3500);
+        }
+
+        function openGarageDrawer() {
+            document.getElementById('garageDrawer').classList.add('open');
+        }
+
+        function closeGarageDrawer() {
+            document.getElementById('garageDrawer').classList.remove('open');
+        }
+
+        function closeGarageDrawerOnBackdrop(e) {
+            if (e.target.id === 'garageDrawer') {
+                closeGarageDrawer();
+            }
         }
 
         async function uploadMobilePhoto(input) {
