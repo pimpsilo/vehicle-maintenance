@@ -722,15 +722,15 @@
             <span>🚗</span> VehicleOps Tracker
         </div>
         <ul class="nav-items">
-            <li class="nav-item active" onclick="switchTab('overview')">📊 Overview</li>
-            <li class="nav-item" onclick="switchTab('vehicles')">🚗 Vehicles</li>
-            <li class="nav-item" onclick="switchTab('documents')">📄 Documents & Policies</li>
-            <li class="nav-item" onclick="switchTab('maintenance')">🛠️ Maintenance & Intervals</li>
-            <li class="nav-item" onclick="switchTab('external')">🏢 External Work & Parts</li>
-            <li class="nav-item" onclick="switchTab('consumables')">🛢️ Consumables Cheat-Sheet</li>
-            <li class="nav-item" onclick="switchTab('guides')">📚 DIY Guides & Manuals</li>
-            <li class="nav-item" onclick="switchTab('knowledge')">💡 Quirks & Knowledge Base</li>
-            <li class="nav-item" onclick="switchTab('sync')">📅 Google Calendar & Alerts</li>
+            <li class="nav-item active" data-tab="overview" onclick="switchTab('overview')">📊 Overview</li>
+            <li class="nav-item" data-tab="vehicles" onclick="switchTab('vehicles')">🚗 Vehicles</li>
+            <li class="nav-item" data-tab="documents" onclick="switchTab('documents')">📄 Documents & Policies</li>
+            <li class="nav-item" data-tab="maintenance" onclick="switchTab('maintenance')">🛠️ Maintenance & Intervals</li>
+            <li class="nav-item" data-tab="external" data-tab="external" onclick="switchTab('external')">🏢 External Work & Parts</li>
+            <li class="nav-item" data-tab="consumables" onclick="switchTab('consumables')">🛢️ Consumables Cheat-Sheet</li>
+            <li class="nav-item" data-tab="guides" onclick="switchTab('guides')">📚 DIY Guides & Manuals</li>
+            <li class="nav-item" data-tab="knowledge" onclick="switchTab('knowledge')">💡 Quirks & Knowledge Base</li>
+            <li class="nav-item" data-tab="sync" onclick="switchTab('sync')">📅 Google Calendar & Alerts</li>
         </ul>
         <div class="sidebar-footer">
             FastAPI + SQLite WAL Engine<br>
@@ -1904,11 +1904,21 @@
         }
 
         function switchTab(tabName) {
+            if (!tabName) tabName = 'overview';
             document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
             document.querySelectorAll('.nav-item').forEach(i => i.classList.remove('active'));
             
             const pane = document.getElementById('pane-' + tabName);
-            if (pane) pane.classList.add('active');
+            if (pane) {
+                pane.classList.add('active');
+            } else {
+                tabName = 'overview';
+                const fallbackPane = document.getElementById('pane-overview');
+                if (fallbackPane) fallbackPane.classList.add('active');
+            }
+
+            const navItem = document.querySelector(`.nav-item[data-tab="${tabName}"]`);
+            if (navItem) navItem.classList.add('active');
 
             const titles = {
                 'overview': 'Overview & Quick Entry',
@@ -1921,13 +1931,23 @@
                 'knowledge': 'Vehicle Quirks & Knowledge Base',
                 'sync': 'Google Calendar & Local Notifications'
             };
-            document.getElementById('pageTitle').innerText = titles[tabName] || 'Dashboard';
+            const pageTitleEl = document.getElementById('pageTitle');
+            if (pageTitleEl) pageTitleEl.innerText = titles[tabName] || 'Dashboard';
+
+            try {
+                if (window.location.hash !== '#' + tabName) {
+                    history.replaceState(null, null, '#' + tabName);
+                }
+                sessionStorage.setItem('activeTab', tabName);
+            } catch (_) {}
         }
 
         function onVehicleChange() {
             const sel = document.getElementById('activeVehicleSelect');
             const vId = sel.value;
-            window.location.href = '/dashboard?vehicle_id=' + vId;
+            const activePane = document.querySelector('.tab-pane.active');
+            const currentTab = activePane ? activePane.id.replace('pane-', '') : (sessionStorage.getItem('activeTab') || 'overview');
+            window.location.href = `/dashboard?vehicle_id=${vId}#${currentTab}`;
         }
 
         /* --- Vehicle Modal & CRUD --- */
@@ -2880,6 +2900,13 @@
                 showToast('Desktop notification dispatched!');
             }
         }
+
+        // Restore active tab from URL hash or sessionStorage on load
+        document.addEventListener('DOMContentLoaded', () => {
+            const hash = window.location.hash.replace('#', '');
+            const savedTab = hash || sessionStorage.getItem('activeTab') || 'overview';
+            switchTab(savedTab);
+        });
     </script>
 </body>
 </html>
