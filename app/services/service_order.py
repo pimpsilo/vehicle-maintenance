@@ -65,12 +65,16 @@ class ServiceOrderService:
             final_labor_cost=order.final_labor_cost,
             invoice_number=order.invoice_number,
             mechanic_notes=order.mechanic_notes,
+            file_name=order.file_name,
+            file_content_type=order.file_content_type,
+            file_size=order.file_size,
             created_at=order.created_at,
             updated_at=order.updated_at,
             shop_name=shop_name,
             parts=parts_read,
             total_parts_cost=total_parts_cost,
             total_order_cost=total_order_cost,
+            has_attachment=bool(order.file_data),
         )
 
     @staticmethod

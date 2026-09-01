@@ -15,17 +15,29 @@ def set_sqlite_pragma(dbapi_connection, connection_record):
     cursor.execute("PRAGMA foreign_keys=ON")
     cursor.close()
 
+def _add_column_if_missing(cursor, table: str, column: str, col_type: str):
+    cursor.execute(f"PRAGMA table_info({table})")
+    columns = [row[1] for row in cursor.fetchall()]
+    if columns and column not in columns:
+        cursor.execute(f"ALTER TABLE {table} ADD COLUMN {column} {col_type}")
+
 def init_db() -> None:
     SQLModel.metadata.create_all(engine)
-    # Automatic schema migration checks
+    # Automatic schema migration checks for SQLite
     try:
         with engine.connect() as conn:
             cursor = conn.connection.cursor()
-            cursor.execute("PRAGMA table_info(vehicles)")
-            columns = [row[1] for row in cursor.fetchall()]
-            if columns and "ezpass_transponder" not in columns:
-                cursor.execute("ALTER TABLE vehicles ADD COLUMN ezpass_transponder VARCHAR")
-                conn.connection.commit()
+            # 1. vehicles table migrations
+            _add_column_if_missing(cursor, "vehicles", "ezpass_transponder", "VARCHAR")
+            
+            # 2. attachment migrations on documents, reference_docs, service_records, orders
+            for tbl in ["vehicle_documents", "reference_documents", "service_records", "external_service_orders"]:
+                _add_column_if_missing(cursor, tbl, "file_data", "BLOB")
+                _add_column_if_missing(cursor, tbl, "file_name", "VARCHAR")
+                _add_column_if_missing(cursor, tbl, "file_content_type", "VARCHAR")
+                _add_column_if_missing(cursor, tbl, "file_size", "INTEGER")
+
+            conn.connection.commit()
             cursor.close()
     except Exception:
         pass

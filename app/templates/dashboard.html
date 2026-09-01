@@ -191,6 +191,15 @@
         .badge-planned { background: #e0f2fe; color: #0369a1; }
         .badge-waiting { background: #fae8ff; color: #86198f; }
         .badge-cancelled { background: #f1f5f9; color: #64748b; }
+        .badge-file {
+            background: #ede9fe;
+            color: #6d28d9;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+        }
+        .badge-file:hover { background: #ddd6fe; }
 
         /* Forms */
         .form-grid {
@@ -436,9 +445,13 @@
                             <label>Invoice Number</label>
                             <input type="text" id="editInvoiceNumber" name="invoice_number" placeholder="e.g. INV-2024-889">
                         </div>
+                        <div class="form-group">
+                            <label>📎 Attach Invoice / Report (PDF, Images, Docs)</label>
+                            <input type="file" id="editOrderFile" name="attachment" accept=".pdf,.png,.jpg,.jpeg,.tif,.tiff,.xls,.xlsx,.doc,.docx,.txt,.rtf,.html,.md">
+                        </div>
                         <div class="form-group full-width">
                             <label>Mechanic Notes & Turnaround Details</label>
-                            <textarea id="editMechanicNotes" name="mechanic_notes" rows="3" placeholder="Notes from mechanic, technician diagnosis, recommendations..."></textarea>
+                            <textarea id="editMechanicNotes" name="mechanic_notes" rows="2" placeholder="Notes from mechanic, technician diagnosis, recommendations..."></textarea>
                         </div>
                     </div>
                 </div>
@@ -784,6 +797,7 @@
                                     <option value="SAFETY_INSPECTION">Safety Inspection</option>
                                     <option value="TITLE">Vehicle Title</option>
                                     <option value="WARRANTY">Extended Warranty</option>
+                                    <option value="OTHER">Other Document</option>
                                 </select>
                             </div>
                             <div class="form-group">
@@ -806,12 +820,16 @@
                                 <label>Alert Lead Window (Days)</label>
                                 <input type="number" name="lead_alert_days" value="30">
                             </div>
+                            <div class="form-group">
+                                <label>📎 Attach Document File (PDF, PNG, JPG, TIF, XLS, DOC, etc.)</label>
+                                <input type="file" name="attachment" accept=".pdf,.png,.jpg,.jpeg,.tif,.tiff,.xls,.xlsx,.doc,.docx,.txt,.rtf,.html,.md">
+                            </div>
                             <div class="form-group full-width">
                                 <label>Notes</label>
                                 <textarea name="notes" rows="2" placeholder="Policy details, deductible, roadside assistance..."></textarea>
                             </div>
                         </div>
-                        <button type="submit" class="btn btn-success">+ Save Document</button>
+                        <button type="submit" class="btn btn-success">+ Save Document & File</button>
                     </form>
                 </div>
 
@@ -826,10 +844,10 @@
                                     <th>Type</th>
                                     <th>Document / Policy #</th>
                                     <th>Issuer</th>
-                                    <th>Effective</th>
                                     <th>Expiration Date</th>
+                                    <th>Attachment</th>
                                     <th>Status</th>
-                                    <th>Calendar Sync</th>
+                                    <th>Actions</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -838,8 +856,19 @@
                                     <td style="font-weight: 600;">{{ d.doc_type.value.replace('_', ' ').title() }}</td>
                                     <td><code>{{ d.document_number }}</code></td>
                                     <td>{{ d.issuer }}</td>
-                                    <td>{{ d.effective_date.strftime('%b %d, %Y') }}</td>
                                     <td>{{ d.expiration_date.strftime('%b %d, %Y') }}</td>
+                                    <td>
+                                        {% if d.file_name %}
+                                        <a href="/api/v1/documents/{{ d.id }}/attachment" target="_blank" class="badge badge-file" title="Click to view/download">
+                                            📎 {{ d.file_name }}
+                                        </a>
+                                        {% else %}
+                                        <label style="cursor: pointer;" class="btn btn-sm btn-outline">
+                                            <span>+ Attach</span>
+                                            <input type="file" style="display: none;" onchange="uploadDocAttachment({{ d.id }}, this)" accept=".pdf,.png,.jpg,.jpeg,.tif,.tiff,.xls,.xlsx,.doc,.docx,.txt,.rtf,.html,.md">
+                                        </label>
+                                        {% endif %}
+                                    </td>
                                     <td>
                                         {% if d.status.value == 'ACTIVE' %}
                                         <span class="badge badge-active">{{ d.days_until_expiration }}d remaining</span>
@@ -852,7 +881,10 @@
                                         {% endif %}
                                     </td>
                                     <td>
-                                        <button class="btn btn-sm btn-outline" onclick="syncDocToCalendar({{ d.id }})">📅 Push to GCal</button>
+                                        <div style="display: flex; gap: 6px;">
+                                            <button class="btn btn-sm btn-outline" onclick="syncDocToCalendar({{ d.id }})">📅 GCal</button>
+                                            <button class="btn btn-sm btn-danger" onclick="deleteDocument({{ d.id }})" title="Delete Document">🗑️</button>
+                                        </div>
                                     </td>
                                 </tr>
                                 {% endfor %}
@@ -899,12 +931,16 @@
                                 <label>Parts Cost ($)</label>
                                 <input type="number" step="0.01" name="parts_cost" value="0.00">
                             </div>
+                            <div class="form-group">
+                                <label>📎 Attach Receipt / Invoice (PDF, JPG, PNG, XLS, etc.)</label>
+                                <input type="file" name="attachment" accept=".pdf,.png,.jpg,.jpeg,.tif,.tiff,.xls,.xlsx,.doc,.docx,.txt,.rtf,.html,.md">
+                            </div>
                             <div class="form-group full-width">
                                 <label>Notes & Parts Used</label>
                                 <textarea name="notes" rows="2" placeholder="Part numbers, oil brand, torque specs..."></textarea>
                             </div>
                         </div>
-                        <button type="submit" class="btn btn-success">+ Save Service Record</button>
+                        <button type="submit" class="btn btn-success">+ Save Service Record & Attachment</button>
                     </form>
                 </div>
 
@@ -967,7 +1003,9 @@
                                     <th>Mileage</th>
                                     <th>Type</th>
                                     <th>Total Cost</th>
+                                    <th>Receipt / File</th>
                                     <th>Notes</th>
+                                    <th>Actions</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -978,7 +1016,19 @@
                                     <td>{{ "{:,}".format(r.completed_mileage) }} mi</td>
                                     <td><span class="badge badge-planned">{{ r.performed_by_type.value }}</span></td>
                                     <td>${{ "%.2f"|format(r.total_cost) }}</td>
+                                    <td>
+                                        {% if r.file_name %}
+                                        <a href="/api/v1/maintenance/records/{{ r.id }}/attachment" target="_blank" class="badge badge-file">
+                                            📎 {{ r.file_name }}
+                                        </a>
+                                        {% else %}
+                                        <span style="color: var(--text-muted);">None</span>
+                                        {% endif %}
+                                    </td>
                                     <td style="color: var(--text-muted);">{{ r.notes or 'None' }}</td>
+                                    <td>
+                                        <button class="btn btn-sm btn-danger" onclick="deleteServiceRecord({{ r.id }})">🗑️</button>
+                                    </td>
                                 </tr>
                                 {% endfor %}
                             </tbody>
@@ -1099,11 +1149,15 @@
                                 <label>Quoted Labor Cost ($)</label>
                                 <input type="number" step="0.01" name="quoted_labor_cost" value="200.00">
                             </div>
+                            <div class="form-group" style="margin-bottom: 12px;">
+                                <label>📎 Attach Estimate / Work Order Document</label>
+                                <input type="file" name="attachment" accept=".pdf,.png,.jpg,.jpeg,.tif,.tiff,.xls,.xlsx,.doc,.docx,.txt,.rtf,.html,.md">
+                            </div>
                             <div class="form-group" style="margin-bottom: 16px;">
                                 <label>Mechanic Notes</label>
                                 <textarea name="mechanic_notes" rows="2" placeholder="Customer sourcing parts, drop off early morning..."></textarea>
                             </div>
-                            <button type="submit" class="btn btn-success">+ Schedule Work Order</button>
+                            <button type="submit" class="btn btn-success">+ Schedule Work Order & File</button>
                         </form>
                     </div>
 
@@ -1175,9 +1229,10 @@
                                     <th>Shop</th>
                                     <th>Service</th>
                                     <th>Scheduled Date</th>
-                                    <th>Parts Cost</th>
-                                    <th>Labor Cost</th>
-                                    <th>Total Cost</th>
+                                    <th>Parts</th>
+                                    <th>Labor</th>
+                                    <th>Total</th>
+                                    <th>Invoice / File</th>
                                     <th>Status</th>
                                     <th>Actions</th>
                                 </tr>
@@ -1192,6 +1247,15 @@
                                     <td>${{ "%.2f"|format(o.total_parts_cost) }}</td>
                                     <td>${{ "%.2f"|format(o.final_labor_cost if o.final_labor_cost is not none else o.quoted_labor_cost) }}</td>
                                     <td style="font-weight: 700; color: var(--primary);">${{ "%.2f"|format(o.total_order_cost) }}</td>
+                                    <td>
+                                        {% if o.file_name %}
+                                        <a href="/api/v1/external-services/orders/{{ o.id }}/attachment" target="_blank" class="badge badge-file">
+                                            📎 {{ o.file_name }}
+                                        </a>
+                                        {% else %}
+                                        <span style="color: var(--text-muted);">None</span>
+                                        {% endif %}
+                                    </td>
                                     <td>
                                         {% if o.status.value == 'COMPLETED' %}
                                         <span class="badge badge-completed">COMPLETED</span>
@@ -1217,7 +1281,7 @@
                                 </tr>
                                 {% else %}
                                 <tr>
-                                    <td colspan="9" style="text-align: center; color: var(--text-muted);">No external work orders scheduled yet.</td>
+                                    <td colspan="10" style="text-align: center; color: var(--text-muted);">No external work orders scheduled yet.</td>
                                 </tr>
                                 {% endfor %}
                             </tbody>
@@ -1330,6 +1394,8 @@
                                     <option value="OFFICIAL_MANUAL">Official Factory Manual</option>
                                     <option value="TSB_BULLETIN">TSB Technical Bulletin</option>
                                     <option value="VIDEO_TUTORIAL">Video Guide / YouTube</option>
+                                    <option value="WIRING_DIAGRAM">Wiring Diagram</option>
+                                    <option value="PARTS_DIAGRAM">Parts Diagram</option>
                                 </select>
                             </div>
                             <div class="form-group">
@@ -1344,6 +1410,10 @@
                                 <label>Source Name / Forum URL</label>
                                 <input type="text" name="source_name_or_url" value="ToyotaNation" placeholder="e.g. ToyotaNation, YouTube">
                             </div>
+                            <div class="form-group">
+                                <label>📎 Attach Manual File (PDF, DOC, XLSX, HTML, Images, MD)</label>
+                                <input type="file" name="attachment" accept=".pdf,.png,.jpg,.jpeg,.tif,.tiff,.xls,.xlsx,.doc,.docx,.txt,.rtf,.html,.md">
+                            </div>
                             <div class="form-group full-width">
                                 <label>Tools Required</label>
                                 <input type="text" name="tools_required" placeholder="e.g. 10mm socket, 5/8 spark plug socket, swivel ratchet...">
@@ -1357,7 +1427,7 @@
                                 <textarea name="early_service_community_tips" rows="2" placeholder="Owners who did this at 100k recommend replacing the intake plenum gasket 17176-0P020..."></textarea>
                             </div>
                         </div>
-                        <button type="submit" class="btn btn-success">+ Save Repair Guide</button>
+                        <button type="submit" class="btn btn-success">+ Save Repair Guide & Attachment</button>
                     </form>
                 </div>
 
@@ -1367,12 +1437,25 @@
                     </div>
                     {% for g in reference_docs %}
                     <div style="border-bottom: 1px solid var(--border); padding: 16px 0;">
-                        <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+                        <div style="display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 8px;">
                             <div>
                                 <h3 style="font-size: 1.1rem; color: var(--primary);">{{ g.title }}</h3>
                                 <div style="font-size: 0.8rem; color: var(--text-muted); margin-top: 4px;">
                                     Source: {{ g.source_name_or_url }} | Difficulty: <span class="badge badge-planned">{{ g.difficulty.value }}</span>
                                 </div>
+                            </div>
+                            <div style="display: flex; gap: 8px; align-items: center;">
+                                {% if g.file_name %}
+                                <a href="/api/v1/reference-docs/{{ g.id }}/attachment" target="_blank" class="badge badge-file" style="padding: 6px 12px; font-size: 0.85rem;">
+                                    📥 Download File ({{ g.file_name }})
+                                </a>
+                                {% else %}
+                                <label style="cursor: pointer;" class="btn btn-sm btn-outline">
+                                    <span>+ Attach Manual</span>
+                                    <input type="file" style="display: none;" onchange="uploadGuideAttachment({{ g.id }}, this)" accept=".pdf,.png,.jpg,.jpeg,.tif,.tiff,.xls,.xlsx,.doc,.docx,.txt,.rtf,.html,.md">
+                                </label>
+                                {% endif %}
+                                <button class="btn btn-sm btn-danger" onclick="deleteGuide({{ g.id }})">🗑️</button>
                             </div>
                         </div>
                         {% if g.tools_required %}
@@ -1551,7 +1634,7 @@
             window.location.href = '/dashboard?vehicle_id=' + vId;
         }
 
-        /* --- Modal Operations for Editing Vehicle --- */
+        /* --- Vehicle Modal & CRUD --- */
         function openEditVehicleModal(id, year, make, model, trim, plate, ezpass, annualMiles, notes) {
             document.getElementById('editVehicleId').value = id;
             document.getElementById('editVehicleYear').value = year;
@@ -1602,7 +1685,7 @@
 
         async function deleteVehicle(vId, vehicleName) {
             const name = vehicleName || 'this vehicle';
-            if (!confirm(`Are you sure you want to delete ${name}? All associated documents, service logs, work orders, and knowledge records for this vehicle will also be removed.`)) {
+            if (!confirm(`Are you sure you want to delete ${name}? All associated documents, service logs, work orders, and attachments for this vehicle will also be removed.`)) {
                 return;
             }
             const res = await fetch(`/api/v1/vehicles/${vId}`, { method: 'DELETE' });
@@ -1624,7 +1707,7 @@
             deleteVehicle(vId, `${year} ${make} ${model}`);
         }
 
-        /* --- Modal Operations for Editing Work Order / Appointment --- */
+        /* --- Work Order / Appointment Modal & CRUD --- */
         function openEditWorkOrderModal(id, shopId, summary, scheduledDate, status, quotedLabor, finalLabor, invoiceNumber, notes, completionDate) {
             document.getElementById('editOrderId').value = id;
             document.getElementById('editShopId').value = shopId;
@@ -1666,6 +1749,14 @@
             });
 
             if (res.ok) {
+                if (form.attachment && form.attachment.files.length > 0) {
+                    const fd = new FormData();
+                    fd.append('file', form.attachment.files[0]);
+                    await fetch(`/api/v1/external-services/orders/${orderId}/attachment`, {
+                        method: 'POST',
+                        body: fd
+                    });
+                }
                 closeEditWorkOrderModal();
                 showToast('Appointment updated successfully!');
                 setTimeout(() => window.location.reload(), 1000);
@@ -1686,7 +1777,7 @@
             }
         }
 
-        /* --- Modal Operations for Editing Mechanic Shop --- */
+        /* --- Mechanic Shop Modal & CRUD --- */
         function openEditShopModal(id, name, contact, phone, email, rate, address, specialties, notes) {
             document.getElementById('editShopFormId').value = id;
             document.getElementById('editShopName').value = name || '';
@@ -1773,7 +1864,7 @@
             }
         }
 
-        /* --- Standard Form Submissions --- */
+        /* --- Standard Form Submissions & File Uploads --- */
         async function submitVehicle(e) {
             e.preventDefault();
             const form = e.target;
@@ -1843,11 +1934,44 @@
                 body: JSON.stringify(payload)
             });
             if (res.ok) {
-                showToast('Document saved!');
+                const doc = await res.json();
+                if (form.attachment && form.attachment.files.length > 0) {
+                    const fd = new FormData();
+                    fd.append('file', form.attachment.files[0]);
+                    await fetch(`/api/v1/documents/${doc.id}/attachment`, {
+                        method: 'POST',
+                        body: fd
+                    });
+                }
+                showToast('Document and file saved!');
                 setTimeout(() => window.location.reload(), 1000);
             } else {
                 const err = await res.json();
                 alert(err.detail || 'Error saving document');
+            }
+        }
+
+        async function uploadDocAttachment(docId, input) {
+            if (!input.files || input.files.length === 0) return;
+            const fd = new FormData();
+            fd.append('file', input.files[0]);
+            const res = await fetch(`/api/v1/documents/${docId}/attachment`, { method: 'POST', body: fd });
+            if (res.ok) {
+                showToast('File attached successfully!');
+                setTimeout(() => window.location.reload(), 1000);
+            } else {
+                alert('Failed to upload file');
+            }
+        }
+
+        async function deleteDocument(docId) {
+            if (!confirm('Are you sure you want to delete this document?')) return;
+            const res = await fetch(`/api/v1/documents/${docId}`, { method: 'DELETE' });
+            if (res.ok) {
+                showToast('Document deleted.');
+                setTimeout(() => window.location.reload(), 1000);
+            } else {
+                alert('Failed to delete document');
             }
         }
 
@@ -1870,11 +1994,31 @@
                 body: JSON.stringify(payload)
             });
             if (res.ok) {
-                showToast('Service record saved!');
+                const record = await res.json();
+                if (form.attachment && form.attachment.files.length > 0) {
+                    const fd = new FormData();
+                    fd.append('file', form.attachment.files[0]);
+                    await fetch(`/api/v1/maintenance/records/${record.id}/attachment`, {
+                        method: 'POST',
+                        body: fd
+                    });
+                }
+                showToast('Service record and receipt saved!');
                 setTimeout(() => window.location.reload(), 1000);
             } else {
                 const err = await res.json();
                 alert(err.detail || 'Error saving service record');
+            }
+        }
+
+        async function deleteServiceRecord(recId) {
+            if (!confirm('Are you sure you want to delete this service record?')) return;
+            const res = await fetch(`/api/v1/maintenance/records/${recId}`, { method: 'DELETE' });
+            if (res.ok) {
+                showToast('Service record deleted.');
+                setTimeout(() => window.location.reload(), 1000);
+            } else {
+                alert('Failed to delete service record');
             }
         }
 
@@ -1895,7 +2039,16 @@
                 body: JSON.stringify(payload)
             });
             if (res.ok) {
-                showToast('Work order created!');
+                const order = await res.json();
+                if (form.attachment && form.attachment.files.length > 0) {
+                    const fd = new FormData();
+                    fd.append('file', form.attachment.files[0]);
+                    await fetch(`/api/v1/external-services/orders/${order.id}/attachment`, {
+                        method: 'POST',
+                        body: fd
+                    });
+                }
+                showToast('Work order scheduled!');
                 setTimeout(() => window.location.reload(), 1000);
             } else {
                 const err = await res.json();
@@ -1978,11 +2131,44 @@
                 body: JSON.stringify(payload)
             });
             if (res.ok) {
-                showToast('Repair guide saved!');
+                const guide = await res.json();
+                if (form.attachment && form.attachment.files.length > 0) {
+                    const fd = new FormData();
+                    fd.append('file', form.attachment.files[0]);
+                    await fetch(`/api/v1/reference-docs/${guide.id}/attachment`, {
+                        method: 'POST',
+                        body: fd
+                    });
+                }
+                showToast('Repair guide and file saved!');
                 setTimeout(() => window.location.reload(), 1000);
             } else {
                 const err = await res.json();
                 alert(err.detail || 'Error saving guide');
+            }
+        }
+
+        async function uploadGuideAttachment(guideId, input) {
+            if (!input.files || input.files.length === 0) return;
+            const fd = new FormData();
+            fd.append('file', input.files[0]);
+            const res = await fetch(`/api/v1/reference-docs/${guideId}/attachment`, { method: 'POST', body: fd });
+            if (res.ok) {
+                showToast('Manual file attached!');
+                setTimeout(() => window.location.reload(), 1000);
+            } else {
+                alert('Failed to upload file');
+            }
+        }
+
+        async function deleteGuide(guideId) {
+            if (!confirm('Are you sure you want to delete this repair guide?')) return;
+            const res = await fetch(`/api/v1/reference-docs/${guideId}`, { method: 'DELETE' });
+            if (res.ok) {
+                showToast('Repair guide deleted.');
+                setTimeout(() => window.location.reload(), 1000);
+            } else {
+                alert('Failed to delete repair guide');
             }
         }
 

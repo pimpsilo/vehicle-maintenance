@@ -103,11 +103,15 @@ class ExternalServiceOrderBase(SQLModel):
     final_labor_cost: Optional[float] = Field(default=None, ge=0.0)
     invoice_number: Optional[str] = None
     mechanic_notes: Optional[str] = None
+    file_name: Optional[str] = None
+    file_content_type: Optional[str] = None
+    file_size: Optional[int] = None
 
 class ExternalServiceOrder(ExternalServiceOrderBase, table=True):
     __tablename__ = "external_service_orders"
 
     id: Optional[int] = Field(default=None, primary_key=True)
+    file_data: Optional[bytes] = Field(default=None)
     created_at: datetime = Field(default_factory=get_utc_now)
     updated_at: datetime = Field(default_factory=get_utc_now)
 
@@ -127,6 +131,7 @@ class ExternalServiceOrderRead(ExternalServiceOrderBase):
     parts: List[PartSourcingRead] = []
     total_parts_cost: float = 0.0
     total_order_cost: float = 0.0
+    has_attachment: bool = False
 
 class ExternalServiceOrderUpdate(SQLModel):
     shop_id: Optional[int] = None
@@ -139,3 +144,6 @@ class ExternalServiceOrderUpdate(SQLModel):
     final_labor_cost: Optional[float] = None
     invoice_number: Optional[str] = None
     mechanic_notes: Optional[str] = None
+    file_name: Optional[str] = None
+    file_content_type: Optional[str] = None
+    file_size: Optional[int] = None

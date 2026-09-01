@@ -27,13 +27,16 @@ class VehicleDocumentBase(SQLModel):
     effective_date: date
     expiration_date: date
     lead_alert_days: int = Field(default=30, ge=1)
-    file_path: Optional[str] = None
+    file_name: Optional[str] = None
+    file_content_type: Optional[str] = None
+    file_size: Optional[int] = None
     notes: Optional[str] = None
 
 class VehicleDocument(VehicleDocumentBase, table=True):
     __tablename__ = "vehicle_documents"
 
     id: Optional[int] = Field(default=None, primary_key=True)
+    file_data: Optional[bytes] = Field(default=None)
     created_at: datetime = Field(default_factory=get_utc_now)
     updated_at: datetime = Field(default_factory=get_utc_now)
 
@@ -49,6 +52,7 @@ class VehicleDocumentRead(VehicleDocumentBase):
     updated_at: datetime
     status: DocumentStatus = DocumentStatus.ACTIVE
     days_until_expiration: int = 0
+    has_attachment: bool = False
 
 class VehicleDocumentUpdate(SQLModel):
     doc_type: Optional[DocumentType] = None
@@ -57,5 +61,7 @@ class VehicleDocumentUpdate(SQLModel):
     effective_date: Optional[date] = None
     expiration_date: Optional[date] = None
     lead_alert_days: Optional[int] = None
-    file_path: Optional[str] = None
+    file_name: Optional[str] = None
+    file_content_type: Optional[str] = None
+    file_size: Optional[int] = None
     notes: Optional[str] = None

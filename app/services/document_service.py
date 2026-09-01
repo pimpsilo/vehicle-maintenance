@@ -39,12 +39,15 @@ class DocumentService:
             effective_date=doc.effective_date,
             expiration_date=doc.expiration_date,
             lead_alert_days=doc.lead_alert_days,
-            file_path=doc.file_path,
+            file_name=doc.file_name,
+            file_content_type=doc.file_content_type,
+            file_size=doc.file_size,
             notes=doc.notes,
             created_at=doc.created_at,
             updated_at=doc.updated_at,
             status=status,
             days_until_expiration=days_remaining,
+            has_attachment=bool(doc.file_data),
         )
 
     @staticmethod

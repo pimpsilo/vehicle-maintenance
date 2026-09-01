@@ -33,11 +33,15 @@ class ReferenceDocumentBase(SQLModel):
         description="Tips & experiences from owners who performed this repair earlier than scheduled"
     )
     tags: Optional[str] = Field(default=None, description="Comma-separated tags e.g. 'spark-plugs, 2gr-fe, intake-removal'")
+    file_name: Optional[str] = None
+    file_content_type: Optional[str] = None
+    file_size: Optional[int] = None
 
 class ReferenceDocument(ReferenceDocumentBase, table=True):
     __tablename__ = "reference_documents"
 
     id: Optional[int] = Field(default=None, primary_key=True)
+    file_data: Optional[bytes] = Field(default=None)
     created_at: datetime = Field(default_factory=get_utc_now)
     updated_at: datetime = Field(default_factory=get_utc_now)
 
@@ -51,6 +55,7 @@ class ReferenceDocumentRead(ReferenceDocumentBase):
     id: int
     created_at: datetime
     updated_at: datetime
+    has_attachment: bool = False
 
 class ReferenceDocumentUpdate(SQLModel):
     title: Optional[str] = None
@@ -62,3 +67,6 @@ class ReferenceDocumentUpdate(SQLModel):
     step_by_step_instructions: Optional[str] = None
     early_service_community_tips: Optional[str] = None
     tags: Optional[str] = None
+    file_name: Optional[str] = None
+    file_content_type: Optional[str] = None
+    file_size: Optional[int] = None

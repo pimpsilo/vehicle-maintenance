@@ -223,3 +223,76 @@ def list_parts(
         )
         for p in parts
     ]
+
+# --- Work Order Attachments (Invoices, Estimates, Inspection Reports) ---
+from fastapi import UploadFile, File, Response
+from app.services.attachment_service import AttachmentService
+
+@router.post("/orders/{order_id}/attachment", response_model=ExternalServiceOrderRead)
+async def upload_work_order_attachment(
+    order_id: int,
+    file: UploadFile = File(...),
+    session: Session = Depends(get_session)
+):
+    order = session.get(ExternalServiceOrder, order_id)
+    if not order:
+        raise HTTPException(status_code=404, detail="Work order not found.")
+    
+    if not AttachmentService.is_allowed_file(file.filename):
+        raise HTTPException(
+            status_code=400,
+            detail="File type not supported. Allowed formats: PDF, PNG, JPG, TIF, XLS/XLSX, DOC/DOCX, TXT, RTF, HTML, MD"
+        )
+    
+    file_bytes = await file.read()
+    content_type = AttachmentService.detect_content_type(file.filename, file.content_type or "application/octet-stream")
+    
+    order.file_data = file_bytes
+    order.file_name = file.filename
+    order.file_content_type = content_type
+    order.file_size = len(file_bytes)
+    order.updated_at = get_utc_now()
+    
+    session.add(order)
+    session.commit()
+    session.refresh(order)
+    return ServiceOrderService.enrich_order_read(session, order)
+
+@router.get("/orders/{order_id}/attachment")
+def download_work_order_attachment(
+    order_id: int,
+    download: bool = Query(False, description="Set True to force download attachment"),
+    session: Session = Depends(get_session)
+):
+    order = session.get(ExternalServiceOrder, order_id)
+    if not order or not order.file_data:
+        raise HTTPException(status_code=404, detail="No attachment found for this work order.")
+    
+    disposition = "attachment" if download else "inline"
+    content_type = order.file_content_type or "application/octet-stream"
+    
+    return Response(
+        content=order.file_data,
+        media_type=content_type,
+        headers={
+            "Content-Disposition": f'{disposition}; filename="{order.file_name or "work_order"}"',
+            "Content-Length": str(order.file_size or len(order.file_data)),
+        }
+    )
+
+@router.delete("/orders/{order_id}/attachment", response_model=ExternalServiceOrderRead)
+def delete_work_order_attachment(order_id: int, session: Session = Depends(get_session)):
+    order = session.get(ExternalServiceOrder, order_id)
+    if not order:
+        raise HTTPException(status_code=404, detail="Work order not found.")
+    
+    order.file_data = None
+    order.file_name = None
+    order.file_content_type = None
+    order.file_size = None
+    order.updated_at = get_utc_now()
+    
+    session.add(order)
+    session.commit()
+    session.refresh(order)
+    return ServiceOrderService.enrich_order_read(session, order)

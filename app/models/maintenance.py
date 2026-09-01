@@ -51,12 +51,16 @@ class ServiceRecordBase(SQLModel):
     labor_cost: float = Field(default=0.0, ge=0.0)
     parts_cost: float = Field(default=0.0, ge=0.0)
     service_shop_id: Optional[int] = Field(default=None, foreign_key="service_shops.id")
+    file_name: Optional[str] = None
+    file_content_type: Optional[str] = None
+    file_size: Optional[int] = None
     notes: Optional[str] = None
 
 class ServiceRecord(ServiceRecordBase, table=True):
     __tablename__ = "service_records"
 
     id: Optional[int] = Field(default=None, primary_key=True)
+    file_data: Optional[bytes] = Field(default=None)
     created_at: datetime = Field(default_factory=get_utc_now)
 
     # Relationships
@@ -70,6 +74,7 @@ class ServiceRecordCreate(ServiceRecordBase):
 class ServiceRecordRead(ServiceRecordBase):
     id: int
     created_at: datetime
+    has_attachment: bool = False
 
 class MaintenanceForecast(SQLModel):
     service_definition_id: int
