@@ -31,15 +31,59 @@
             padding: 20px;
             border-radius: 16px;
             margin-bottom: 16px;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.12);
         }
-        .header h1 { font-size: 1.4rem; font-weight: 700; }
-        .header .vin { font-size: 0.8rem; opacity: 0.8; font-family: monospace; letter-spacing: 0.5px; }
+        .header h1 { font-size: 1.35rem; font-weight: 700; line-height: 1.2; }
+        .header .vin { font-size: 0.78rem; opacity: 0.85; font-family: monospace; letter-spacing: 0.5px; }
         .odometer-display {
             font-size: 1.6rem;
             font-weight: 800;
             color: #38bdf8;
-            margin-top: 8px;
+            margin-top: 10px;
+        }
+        .photo-wrapper {
+            position: relative;
+            width: 96px;
+            height: 96px;
+            flex-shrink: 0;
+        }
+        .photo-img {
+            width: 96px;
+            height: 96px;
+            object-fit: cover;
+            border-radius: 12px;
+            border: 2px solid rgba(255,255,255,0.4);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+        }
+        .photo-placeholder {
+            width: 96px;
+            height: 96px;
+            border-radius: 12px;
+            background: rgba(255,255,255,0.12);
+            border: 2px dashed rgba(255,255,255,0.4);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 0.75rem;
+            text-align: center;
+        }
+        .photo-btn {
+            position: absolute;
+            bottom: -6px;
+            right: -6px;
+            background: var(--success);
+            color: white;
+            border-radius: 20px;
+            padding: 4px 8px;
+            font-size: 0.7rem;
+            font-weight: 700;
+            cursor: pointer;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.35);
+            display: flex;
+            align-items: center;
+            gap: 3px;
         }
         .card {
             background: var(--card-bg);
@@ -135,13 +179,35 @@
     <div id="toast" class="toast toast-success"></div>
 
     <div class="header">
-        <h1>{{ vehicle.year }} {{ vehicle.make }} {{ vehicle.model }}</h1>
-        <div class="vin">VIN: {{ vehicle.vin }}</div>
+        <div style="display: flex; gap: 16px; align-items: center; margin-bottom: 12px;">
+            <div class="photo-wrapper">
+                {% if vehicle.photo_data %}
+                <img src="/api/v1/vehicles/{{ vehicle.id }}/photo" alt="{{ vehicle.year }} {{ vehicle.model }}" class="photo-img">
+                {% else %}
+                <div class="photo-placeholder">
+                    <span style="font-size: 1.8rem; margin-bottom: 2px;">🚗</span>
+                    <span>No Photo</span>
+                </div>
+                {% endif %}
+                <label class="photo-btn" title="Snap Photo with Phone Camera">
+                    📷 <span>{% if vehicle.photo_data %}Retake{% else %}Snap{% endif %}</span>
+                    <input type="file" style="display: none;" accept="image/*" capture="environment" onchange="uploadMobilePhoto(this)">
+                </label>
+            </div>
+            <div style="flex: 1;">
+                <h1>{{ vehicle.year }} {{ vehicle.make }} {{ vehicle.model }}</h1>
+                <div style="color: #93c5fd; font-size: 0.85rem; font-weight: 600; margin-top: 2px;">{{ vehicle.trim or 'Fleet Vehicle' }}</div>
+                <div class="vin" style="margin-top: 4px;">VIN: {{ vehicle.vin }}</div>
+            </div>
+        </div>
+
         <div class="odometer-display" id="odometerDisplay">{{ "{:,}".format(vehicle.current_mileage) }} Miles</div>
-        <div style="font-size: 0.85rem; margin-top: 6px; opacity: 0.95; display: flex; gap: 12px; flex-wrap: wrap;">
-            <span>Trim: {{ vehicle.trim or 'Standard' }}</span>
+        <div style="font-size: 0.82rem; margin-top: 8px; opacity: 0.95; display: flex; gap: 10px; flex-wrap: wrap; align-items: center;">
             {% if vehicle.license_plate %}<span>Plate: <strong>{{ vehicle.license_plate }}</strong></span>{% endif %}
             {% if vehicle.ezpass_transponder %}<span>EZ-Pass: <code>{{ vehicle.ezpass_transponder }}</code></span>{% endif %}
+            {% if vehicle.photo_data %}
+            <a href="#" onclick="deleteMobilePhoto(); return false;" style="color: #fca5a5; text-decoration: none; margin-left: auto; font-size: 0.78rem;">🗑️ Remove Photo</a>
+            {% endif %}
         </div>
     </div>
 
@@ -252,6 +318,40 @@
             t.innerText = msg;
             t.style.display = 'block';
             setTimeout(() => { t.style.display = 'none'; }, 3500);
+        }
+
+        async function uploadMobilePhoto(input) {
+            if (!input.files || input.files.length === 0) return;
+            const fd = new FormData();
+            fd.append('file', input.files[0]);
+            showToast('Uploading vehicle photo...');
+            try {
+                const res = await fetch('/api/v1/vehicles/{{ vehicle.id }}/photo', { method: 'POST', body: fd });
+                if (res.ok) {
+                    showToast('Vehicle photo saved!');
+                    setTimeout(() => window.location.reload(), 800);
+                } else {
+                    const err = await res.json();
+                    alert(err.detail || 'Failed to upload photo');
+                }
+            } catch (err) {
+                alert('Network error uploading photo: ' + err.message);
+            }
+        }
+
+        async function deleteMobilePhoto() {
+            if (!confirm('Remove this vehicle photo?')) return;
+            try {
+                const res = await fetch('/api/v1/vehicles/{{ vehicle.id }}/photo', { method: 'DELETE' });
+                if (res.ok) {
+                    showToast('Photo removed.');
+                    setTimeout(() => window.location.reload(), 800);
+                } else {
+                    alert('Failed to remove photo');
+                }
+            } catch (err) {
+                alert('Network error: ' + err.message);
+            }
         }
 
         document.getElementById('odometerForm').addEventListener('submit', async (e) => {
