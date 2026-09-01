@@ -2085,15 +2085,22 @@
                         `• DIY Guides & Manuals added: ${counts.guides_added || 0}\n` +
                         `• Community Quirks & Tips added: ${counts.quirks_added || 0}\n` +
                         `• Open NHTSA Safety Recalls: ${counts.recalls_found || 0}\n\n` +
-                        `Community Sources Scanned: ToyotaNation, Reddit r/MechanicAdvice, YouTube Master Techs.`;
+                        `Community Sources Scanned: Enthusiast Forums, Reddit r/MechanicAdvice, YouTube Master Techs.`;
                     alert(summary);
                     window.location.reload();
                 } else {
-                    const err = await res.json();
-                    alert(err.detail || 'Auto-discovery failed.');
+                    let errMsg = `Auto-discovery failed (Status ${res.status})`;
+                    try {
+                        const err = await res.json();
+                        if (err.detail) errMsg = err.detail;
+                    } catch (_) {
+                        const text = await res.text();
+                        if (text) errMsg = text;
+                    }
+                    alert(errMsg);
                 }
             } catch (err) {
-                alert('Error during auto-discovery: ' + err.message);
+                alert('Error during auto-discovery: ' + (err.message || err));
             }
         }
 
