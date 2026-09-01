@@ -2,7 +2,7 @@ from typing import Dict, Any, List
 from sqlmodel import Session, select
 from app.models.vehicle import Vehicle
 from app.models.consumable import ConsumableSpecification
-from app.models.reference_doc import ReferenceDocument
+from app.models.reference_doc import ReferenceDocument, DocCategory, DifficultyRating
 from app.models.vehicle_knowledge import VehicleKnowledge, KnowledgeCategory, ComponentSystem, SeverityLevel
 from app.services.nhtsa_service import NHTSAService
 from app.services.community_crawler import CommunityCrawler
@@ -72,15 +72,30 @@ class FleetIntelligenceService:
                 session.add(new_c)
                 counts["consumables_added"] += 1
             else:
-                # Enrich existing consumable if missing OEM part number or aftermarket alternatives
+                # Enrich existing consumable if missing or holding generic placeholder values
                 existing_item = consumable_by_category[cat]
                 updated = False
-                if not existing_item.oem_part_number and spec.get("oem_part_number"):
+                
+                is_generic_oem = not existing_item.oem_part_number or any(
+                    kw in (existing_item.oem_part_number or "") for kw in ["Genuine OEM", "Genuine Filter", "OEM Air", "OEM Cabin", "Genuine Wiper", "Genuine Iridium", "Genuine Brake", "Genuine Part"]
+                )
+                if is_generic_oem and spec.get("oem_part_number"):
                     existing_item.oem_part_number = spec.get("oem_part_number")
                     updated = True
-                if not existing_item.aftermarket_alternatives and spec.get("aftermarket_alternatives"):
+
+                is_generic_alt = not existing_item.aftermarket_alternatives or (existing_item.aftermarket_alternatives or "").startswith("Mobil 1 Advanced Fuel Economy, Pennzoil") or (existing_item.aftermarket_alternatives or "").startswith("Wix / Wix XP, Mobil 1") or (existing_item.aftermarket_alternatives or "").startswith("Denso Iridium TT / Long Life") or (existing_item.aftermarket_alternatives or "").startswith("Wix, Denso First Time Fit")
+                if is_generic_alt and spec.get("aftermarket_alternatives"):
                     existing_item.aftermarket_alternatives = spec.get("aftermarket_alternatives")
                     updated = True
+
+                if ("SAE 0W-20 or 5W-30" in (existing_item.specification or "") or "OEM Spec" in (existing_item.specification or "")) and spec.get("specification"):
+                    existing_item.specification = spec.get("specification")
+                    updated = True
+
+                if (not existing_item.replacement_interval_summary or "Every 7,500 - 10,000 miles" in (existing_item.replacement_interval_summary or "")) and spec.get("replacement_interval_summary"):
+                    existing_item.replacement_interval_summary = spec.get("replacement_interval_summary")
+                    updated = True
+
                 if updated:
                     session.add(existing_item)
 
@@ -95,12 +110,12 @@ class FleetIntelligenceService:
                 new_g = ReferenceDocument(
                     vehicle_id=vehicle.id,
                     title=g["title"],
-                    doc_category=g.get("doc_category"),
-                    difficulty=g.get("difficulty"),
+                    doc_category=g.get("doc_category", DocCategory.COMMUNITY_DIY_GUIDE),
+                    difficulty=g.get("difficulty", DifficultyRating.INTERMEDIATE),
                     source_name_or_url=g.get("source_name_or_url", "Community Forums"),
                     tools_required=g.get("tools_required"),
                     estimated_hours=g.get("estimated_hours"),
-                    step_by_step_instructions=g["step_by_step_instructions"],
+                    step_by_step_instructions=g.get("step_by_step_instructions", ""),
                     early_service_community_tips=g.get("early_service_community_tips"),
                     tags=g.get("tags"),
                 )

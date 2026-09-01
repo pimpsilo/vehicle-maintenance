@@ -132,6 +132,268 @@ VEHICLE_KNOWLEDGE_PROFILES = {
                 "recommended_action": "Keep tire pressure at 33-35 PSI and use full synthetic 0W-20 oil to maximize highway range (~500+ miles per tank)."
             }
         ]
+    },
+    "hyundai_palisade_38": {
+        "identifiers": ["PALISADE", "TELLURIDE", "3.8L V6", "LAMBDA II", "G6DN", "G6DU", "HYUNDAI PALISADE", "KIA TELLURIDE", "KM8R7"],
+        "consumables": [
+            {
+                "category": ConsumableCategory.ENGINE_OIL,
+                "item_name": "Engine Motor Oil",
+                "specification": "SAE 0W-20 Full Synthetic (6.87 Quarts with filter)",
+                "oem_part_number": "05100-00451 (Hyundai Genuine API SP / ILSAC GF-6)",
+                "aftermarket_alternatives": "Mobil 1 Extended Performance 0W-20, Pennzoil Ultra Platinum 0W-20, Castrol EDGE 0W-20",
+                "replacement_interval_summary": "Every 7,500 - 8,000 miles / 12 months (5,000 mi for severe/city duty)"
+            },
+            {
+                "category": ConsumableCategory.OIL_FILTER,
+                "item_name": "Oil Filter Element",
+                "specification": "Cartridge Style Oil Filter with O-Ring & Drain Washer",
+                "oem_part_number": "26320-3N000 (or 26320-3CKB0)",
+                "aftermarket_alternatives": "Wix WL10026 / WL10026XP, Mobil 1 M1C-451A, Fram Ultra Synthetic XG11943",
+                "replacement_interval_summary": "Replace every oil change (7,500 - 8,000 mi)"
+            },
+            {
+                "category": ConsumableCategory.SPARK_PLUGS,
+                "item_name": "Iridium Spark Plugs (Set of 6)",
+                "specification": "Yttrium / Laser Iridium Pre-Gapped 0.040 in (18 ft-lbs torque)",
+                "oem_part_number": "18872-09085 (Y10NG7BG)",
+                "aftermarket_alternatives": "NGK Laser Iridium 94364 (ILKR7E6), Denso Iridium TT",
+                "replacement_interval_summary": "Every 96,000 - 100,000 miles"
+            },
+            {
+                "category": ConsumableCategory.TRANSMISSION_FLUID,
+                "item_name": "Automatic Transmission Fluid (SP-IV-M)",
+                "specification": "Hyundai Genuine ATF SP-IV-M / SP4-M1 (8-Speed Automatic) - Drain & Fill ~3.2 Quarts",
+                "oem_part_number": "00232-19057",
+                "aftermarket_alternatives": "Idemitsu HK-8 Full Synthetic, Valvoline MaxLife Multi-Vehicle ATF",
+                "replacement_interval_summary": "Every 60,000 miles (Drain & Fill)"
+            },
+            {
+                "category": ConsumableCategory.COOLANT,
+                "item_name": "Engine Coolant (Phosphate OAT)",
+                "specification": "Long Life Phosphate OAT 50/50 Blue/Pink (~8.5 Quarts)",
+                "oem_part_number": "00232-19010",
+                "aftermarket_alternatives": "Zerex Asian Blue 50/50 (861398), Peak Original Equipment Asian Blue",
+                "replacement_interval_summary": "Initial 120,000 miles / 10 years, then every 30,000 miles"
+            },
+            {
+                "category": ConsumableCategory.ENGINE_AIR_FILTER,
+                "item_name": "Engine Air Cleaner Filter",
+                "specification": "High-Flow Panel Air Cleaner Element",
+                "oem_part_number": "28113-S8100",
+                "aftermarket_alternatives": "Wix WA10878, Fram Extra Guard CA12548, K&N 33-5108",
+                "replacement_interval_summary": "Every 30,000 miles / 36 months"
+            },
+            {
+                "category": ConsumableCategory.CABIN_AIR_FILTER,
+                "item_name": "Cabin Air Pollen Filter",
+                "specification": "Glovebox Activated Carbon Dust & Odor Filter",
+                "oem_part_number": "97133-S8000",
+                "aftermarket_alternatives": "EPAuto CP858, Bosch HEPA 6059C, Fram Fresh Breeze CF12458",
+                "replacement_interval_summary": "Every 15,000 - 20,000 miles / 12 months"
+            },
+            {
+                "category": ConsumableCategory.WIPER_BLADES,
+                "item_name": "Windshield Wiper Blades",
+                "specification": "Driver: 26 Inch (650mm) / Passenger: 20 Inch (500mm) / Rear: 11 Inch",
+                "oem_part_number": "98350-S8000 (Driver 26\") / 98360-S8000 (Pass 20\")",
+                "aftermarket_alternatives": "Bosch ICON 26A / 20A, Rain-X Latitude Water Repellency",
+                "replacement_interval_summary": "Replace every 6 - 12 months or upon streaking"
+            },
+            {
+                "category": ConsumableCategory.BRAKE_PADS,
+                "item_name": "Front & Rear Ceramic Brake Pads",
+                "specification": "Ultra-Quiet Low-Dust Ceramic Compound with Hardware",
+                "oem_part_number": "58101-S8A00 (Front) / 58302-S8A00 (Rear)",
+                "aftermarket_alternatives": "Akebono ACT2224 / ACT2225 ProACT Ceramic, Power Stop Z23-2224",
+                "replacement_interval_summary": "Inspect at 8,000 mi; replace when friction material < 3.0mm"
+            },
+            {
+                "category": ConsumableCategory.BATTERY,
+                "item_name": "12V Starter & Auxiliary Battery",
+                "specification": "AGM BCI Group Size H7 / 94R (800+ CCA) for Idle Stop & Go",
+                "oem_part_number": "37110-C5800",
+                "aftermarket_alternatives": "Interstate MTX-94R/H7 AGM (850 CCA), Duralast Platinum H7-AGM",
+                "replacement_interval_summary": "Test annually; replace every 3 - 5 years"
+            }
+        ],
+        "guides": [
+            {
+                "title": "3.8L V6 Lambda II Atkinson GDI Oil & Filter Change Walkthrough",
+                "doc_category": DocCategory.COMMUNITY_DIY_GUIDE,
+                "difficulty": DifficultyRating.BEGINNER,
+                "source_name_or_url": "Palisade Forum & Master Techs",
+                "tools_required": "10mm socket, 17mm drain socket, 24mm/27mm oil filter socket, torque wrench, drain pan",
+                "estimated_hours": 0.6,
+                "step_by_step_instructions": "1. Warm engine to operating temperature. Lift vehicle securely on jack stands or ramps.\n2. Remove the lower engine access splash shield with a 10mm socket.\n3. Drain engine oil using a 17mm socket on the oil pan drain plug. Replace crush washer.\n4. Unscrew the cartridge oil filter housing using a 24mm or 27mm socket. Replace the center cartridge (OEM 26320-3N000) and both rubber O-rings with fresh oil lubrication.\n5. Reinstall filter housing and torque to 25 Nm (18.4 ft-lbs). Reinstall drain plug and torque to 34-44 Nm (25-32 ft-lbs).\n6. Refill engine with 6.87 Quarts (6.5 Liters) of SAE 0W-20 Full Synthetic API SP / ILSAC GF-6 oil.\n7. Check dipstick and reset Oil Life Monitor in instrument cluster Settings menu.",
+                "early_service_community_tips": "Do not overtighten the plastic cartridge filter housing. Hand-thread first to avoid cross-threading, then torque to 18 ft-lbs.",
+                "tags": "hyundai, palisade, oil-change, 3.8l, lambda-ii, maintenance"
+            },
+            {
+                "title": "8-Speed Automatic Transmission SP-IV-M Fluid Drain & Fill Procedure",
+                "doc_category": DocCategory.COMMUNITY_DIY_GUIDE,
+                "difficulty": DifficultyRating.INTERMEDIATE,
+                "source_name_or_url": "Hyundai-Forums & Kia-Forums",
+                "tools_required": "Drain pan, graduated container, fluid pump, 24mm fill plug socket, new drain crush washer",
+                "estimated_hours": 1.0,
+                "step_by_step_instructions": "1. Level the vehicle completely on 4 jack stands.\n2. Drain transmission fluid using the bottom drain plug into a graduated container (~3.2 quarts will drain).\n3. Reinstall drain plug with a new crush washer and torque to 34-44 Nm.\n4. Remove the upper air intake snorkel to access the transmission fill plug or use the side level check plug.\n5. Pump in ~3.5 quarts of fresh Hyundai Genuine ATF SP-IV-M (00232-19057) or Idemitsu HK-8.\n6. Start engine, shift through all gears (P-R-N-D) holding each for 5 seconds, bring fluid temp to 50°C - 60°C (122°F - 140°F), and verify level at the overflow plug.",
+                "early_service_community_tips": "Drain and fill every 60k miles to ensure smooth 8-speed shifts and prevent torque converter shudder.",
+                "tags": "hyundai, palisade, transmission, 8-speed, sp-iv-m, atf"
+            }
+        ],
+        "quirks": [
+            {
+                "title": "Idle Stop & Go (ISG) AGM Battery Sensitivity",
+                "category": KnowledgeCategory.KNOWN_QUIRK,
+                "component_system": ComponentSystem.ELECTRICAL,
+                "severity": SeverityLevel.INFO,
+                "description": "The Palisade uses an advanced AGM battery to support the Idle Stop & Go system. If battery state of charge (SoC) drops below 75% or terminal sensors lose calibration, ISG will temporarily disable itself without warning lights.",
+                "recommended_action": "Always replace with an AGM H7/94R battery (OEM 37110-C5800 or Interstate MTX-94R). After battery replacement, let the vehicle sit locked undisturbed for 4 hours to calibrate the battery monitoring sensor (BMS)."
+            },
+            {
+                "title": "Direct Injection (GDI) Intake Valve Carbon Care & Fuel Tier",
+                "category": KnowledgeCategory.MAINTENANCE_PRECAUTION,
+                "component_system": ComponentSystem.ENGINE,
+                "severity": SeverityLevel.INFO,
+                "description": "The 3.8L Lambda II engine uses high-pressure Gasoline Direct Injection (GDI). Because fuel does not wash over the intake valves, carbon deposits can accumulate over 60,000+ miles if low-tier fuels are used.",
+                "recommended_action": "Use Top Tier regular 87+ octane fuel and add a bottle of PEA-based fuel system cleaner (such as Chevron Techron or Hyundai OEM fuel additive) before every oil change."
+            }
+        ]
+    },
+    "buick_cascada_16t": {
+        "identifiers": ["CASCADA", "BUICK CASCADA", "1.6T", "1.6L TURBO", "ECOTEC", "LVP", "16XHT", "OPEL CASCADA", "W04WH"],
+        "consumables": [
+            {
+                "category": ConsumableCategory.ENGINE_OIL,
+                "item_name": "Engine Motor Oil",
+                "specification": "SAE 5W-30 dexos1 Gen 3 Full Synthetic (5.8 Quarts with filter)",
+                "oem_part_number": "ACDelco 10-9277 (19370000 dexos1 Gen 3)",
+                "aftermarket_alternatives": "Mobil 1 5W-30 Full Synthetic (120764), Pennzoil Platinum 5W-30, Castrol EDGE 5W-30",
+                "replacement_interval_summary": "Every 5,000 - 7,500 miles / 12 months (or per Oil Life Monitor)"
+            },
+            {
+                "category": ConsumableCategory.OIL_FILTER,
+                "item_name": "Engine Oil Filter Element",
+                "specification": "Cartridge Style Oil Filter with O-Ring",
+                "oem_part_number": "ACDelco PF64 / 12696048 (or PF2257G / 55594651)",
+                "aftermarket_alternatives": "Wix 57090 / 57090XP, Mobil 1 M1-114A, Fram Ultra Synthetic XG10575",
+                "replacement_interval_summary": "Replace every oil change"
+            },
+            {
+                "category": ConsumableCategory.SPARK_PLUGS,
+                "item_name": "Iridium Spark Plugs (Set of 4)",
+                "specification": "Iridium High-Ignitability Turbo Spark Plugs (18 ft-lbs torque)",
+                "oem_part_number": "ACDelco 41-125 (GM 55490097)",
+                "aftermarket_alternatives": "NGK Laser Iridium 95712 (IFR7X7G), Denso Iridium Power ITV22",
+                "replacement_interval_summary": "Every 60,000 miles (Turbo high-boost interval)"
+            },
+            {
+                "category": ConsumableCategory.TRANSMISSION_FLUID,
+                "item_name": "Automatic Transmission Fluid (Dexron-VI)",
+                "specification": "ACDelco Dexron-VI Full Synthetic ATF (6T45 6-Speed) (~4.5 Quarts drain/fill)",
+                "oem_part_number": "ACDelco 10-9244 (19391844)",
+                "aftermarket_alternatives": "Valvoline Dexron-VI Full Synthetic ATF, Mobil DEXRON-VI",
+                "replacement_interval_summary": "Every 45,000 - 60,000 miles"
+            },
+            {
+                "category": ConsumableCategory.COOLANT,
+                "item_name": "Engine Coolant (Dex-Cool)",
+                "specification": "ACDelco Dex-Cool 50/50 Pre-Diluted Orange OAT (~6.3 Quarts)",
+                "oem_part_number": "ACDelco 10-5027 (12378390)",
+                "aftermarket_alternatives": "Prestone Dex-Cool 50/50, Valvoline Dex-Cool Extended Life",
+                "replacement_interval_summary": "Every 100,000 miles / 5 years"
+            },
+            {
+                "category": ConsumableCategory.ENGINE_AIR_FILTER,
+                "item_name": "Engine Air Intake Filter",
+                "specification": "High-Efficiency Pleated Paper Panel Air Cleaner Element",
+                "oem_part_number": "ACDelco A3184C (GM 13272719)",
+                "aftermarket_alternatives": "Wix 49272, Fram Extra Guard CA10892, K&N 33-2962",
+                "replacement_interval_summary": "Every 30,000 miles / 36 months"
+            },
+            {
+                "category": ConsumableCategory.CABIN_AIR_FILTER,
+                "item_name": "Cabin Air Pollen Filter",
+                "specification": "Glovebox Particulate & Odor Filter",
+                "oem_part_number": "ACDelco CF181 (GM 13271190)",
+                "aftermarket_alternatives": "EPAuto CP190, Bosch HEPA 6052C, Fram Fresh Breeze CF10775",
+                "replacement_interval_summary": "Every 15,000 - 20,000 miles / 12 months"
+            },
+            {
+                "category": ConsumableCategory.WIPER_BLADES,
+                "item_name": "Windshield Wiper Blades",
+                "specification": "Driver: 28 Inch (700mm) / Passenger: 28 Inch (700mm) Pinch-Tab / Side-Pin",
+                "oem_part_number": "GM 13227443",
+                "aftermarket_alternatives": "Bosch ICON 28A / 28B, Rain-X Latitude Water Repellency 28\"",
+                "replacement_interval_summary": "Replace every 6 - 12 months"
+            },
+            {
+                "category": ConsumableCategory.BRAKE_PADS,
+                "item_name": "Front & Rear Ceramic Brake Pads",
+                "specification": "Low-Dust Ceramic Friction Material with Stainless Hardware",
+                "oem_part_number": "ACDelco 171-1100 (Front GM 13411116) / 171-1101 (Rear)",
+                "aftermarket_alternatives": "Akebono ACT1468 / ACT1469 ProACT Ceramic, Power Stop Z23-1468",
+                "replacement_interval_summary": "Inspect at 7,500 mi; replace when < 3.0mm"
+            },
+            {
+                "category": ConsumableCategory.BATTERY,
+                "item_name": "12V Starter Battery",
+                "specification": "BCI Group Size 48 / H6 (730+ CCA)",
+                "oem_part_number": "ACDelco 48GHR",
+                "aftermarket_alternatives": "Interstate MTX-48/H6 AGM (760 CCA), Duralast Gold H6-DLG",
+                "replacement_interval_summary": "Test annually; replace every 3 - 5 years"
+            },
+            {
+                "category": ConsumableCategory.OTHER,
+                "item_name": "Convertible Top Hydraulic Fluid",
+                "specification": "Pentosin CHF 11S / CHF 202 Synthetic Central Hydraulic Fluid",
+                "oem_part_number": "GM 89021184",
+                "aftermarket_alternatives": "Febi Bilstein 06161, Liqui Moly Central Hydraulic Fluid",
+                "replacement_interval_summary": "Inspect hydraulic reservoir level in trunk annually"
+            }
+        ],
+        "guides": [
+            {
+                "title": "1.6T Ecotec Turbo dexos1 Gen 3 Oil & Filter Change Guide",
+                "doc_category": DocCategory.COMMUNITY_DIY_GUIDE,
+                "difficulty": DifficultyRating.BEGINNER,
+                "source_name_or_url": "Buick Forums & Cascada Club",
+                "tools_required": "15mm drain socket, 24mm filter socket, torque wrench, oil catch pan",
+                "estimated_hours": 0.6,
+                "step_by_step_instructions": "1. Raise vehicle on jack stands or ramps.\n2. Remove lower splash panel if equipped.\n3. Drain engine oil from pan using a 15mm socket. Replace drain plug O-ring/gasket.\n4. Access the oil filter cartridge housing on the front-facing engine block using a 24mm socket. Replace filter element (ACDelco PF64 / 55594651) and lubricate new O-ring.\n5. Torque filter cap to 25 Nm (18 ft-lbs) and drain plug to 20 Nm (14 ft-lbs).\n6. Refill with 5.8 Quarts (5.5 Liters) of SAE 5W-30 dexos1 Gen 3 Full Synthetic oil (ACDelco 10-9277 or Mobil 1 5W-30).\n7. Reset Oil Life percentage via steering wheel DIC controls.",
+                "early_service_community_tips": "Always use genuine dexos1 Gen 3 certified full synthetic 5W-30 to prevent Low-Speed Pre-Ignition (LSPI) in direct-injected turbo Ecotec engines.",
+                "tags": "buick, cascada, oil-change, 1.6t, ecotec, dexos1"
+            },
+            {
+                "title": "Cascada Electro-Hydraulic Soft-Top Care & Weatherstrip Lubrication (Krytox)",
+                "doc_category": DocCategory.COMMUNITY_DIY_GUIDE,
+                "difficulty": DifficultyRating.INTERMEDIATE,
+                "source_name_or_url": "Buick Cascada Club & GM TSBs",
+                "tools_required": "Krytox GPL 205 grease / GM weatherstrip lube, microfiber towels, mild soap",
+                "estimated_hours": 0.75,
+                "step_by_step_instructions": "1. Park vehicle in shade with engine running, open roof halfway into service position.\n2. Clean all rubber weatherstripping around header panel, side windows, and tonneau cover with mild soapy water and dry thoroughly.\n3. Apply a thin coat of Krytox GPL 205 or genuine GM weatherstrip lubricant to all seals to prevent squeaks and wind noise.\n4. Inspect hydraulic pump fluid level behind the right trunk side panel (use Pentosin CHF 11S / GM 89021184 if low).\n5. Cycle roof fully closed and verify rear window defroster connection.",
+                "early_service_community_tips": "Lubricate roof weatherstripping every spring and fall to prevent seal squeaks, wind leaks, and microswitch misalignment.",
+                "tags": "buick, cascada, convertible, soft-top, hydraulic-fluid, krytox"
+            }
+        ],
+        "quirks": [
+            {
+                "title": "Soft-Top Tonneau Cover Microswitch & Seal Lubrication",
+                "category": KnowledgeCategory.MAINTENANCE_PRECAUTION,
+                "component_system": ComponentSystem.BODY_INTERIOR,
+                "severity": SeverityLevel.INFO,
+                "description": "The Cascada soft-top system relies on precision microswitches and alignment pins on the tonneau cover. If rubber seals become dry or sticky, the roof mechanism may pause mid-cycle or report a 'Top Not Secure' warning.",
+                "recommended_action": "Lubricate all roof weatherstripping annually with Krytox or silicone lubricant and keep tonneau latch hinges lightly greased."
+            },
+            {
+                "title": "1.6T Turbocharged Direct Injection & Spark Plug Heat Range",
+                "category": KnowledgeCategory.KNOWN_QUIRK,
+                "component_system": ComponentSystem.ENGINE,
+                "severity": SeverityLevel.WATCH_ITEM,
+                "description": "The turbocharged 1.6L Ecotec engine operates under high boost pressure. Worn or improperly gapped spark plugs can cause high-load hesitation or low-speed pre-ignition (LSPI).",
+                "recommended_action": "Always use genuine ACDelco 41-125 / GM 55490097 iridium plugs and replace strictly at 60,000-mile intervals. Never use copper or unapproved heat-range plugs."
+            }
+        ]
     }
 }
 
@@ -180,6 +442,12 @@ class CommunityCrawler:
         elif "honda" in make_lower or "acura" in make_lower:
             forums.insert(0, {"name": "Drive Accord / CivicX Forums", "url": "https://www.driveaccord.net/", "focus": "Honda enthusiast technical repair guides"})
             forums.insert(1, {"name": "Acurazine", "url": "https://acurazine.com/", "focus": "Acura & Honda powertrain maintenance"})
+        elif "hyundai" in make_lower or "kia" in make_lower:
+            forums.insert(0, {"name": "Palisade Forum / Hyundai-Forums", "url": "https://www.palisadeforum.com/", "focus": "3.8L V6 Lambda II maintenance, TSBs, owner guides"})
+            forums.insert(1, {"name": "Kia-Forums Community", "url": "https://www.kia-forums.com/", "focus": "Telluride & Hyundai/Kia powertrain discussions"})
+        elif "buick" in make_lower or "gm" in make_lower or "chevrolet" in make_lower or "chevy" in make_lower:
+            forums.insert(0, {"name": "Buick Forums / Cascada Club", "url": "https://buickforums.com/forums/forums/buick-cascada-forum.119/", "focus": "1.6T Ecotec maintenance & soft-top care"})
+            forums.insert(1, {"name": "GM-Trucks & Enthusiasts", "url": "https://www.gm-trucks.com/forums/", "focus": "GM Dexos1, Dexron-VI, and Dex-Cool guides"})
         elif "ford" in make_lower:
             forums.insert(0, {"name": "F150Forum / FordTrucks", "url": "https://www.f150forum.com/", "focus": "EcoBoost & V8 maintenance walkthroughs"})
         elif "subaru" in make_lower:

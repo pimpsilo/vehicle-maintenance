@@ -86,3 +86,49 @@ def test_auto_discover_fleet_intelligence_endpoint(client: TestClient):
     decode_res = client.get(f"/api/v1/vehicles/decode-vin/4T1BK1EB5EU999999")
     assert decode_res.status_code == 200
     assert decode_res.json()["vin"] == "4T1BK1EB5EU999999"
+
+def test_palisade_and_cascada_curated_fleet_intelligence(client: TestClient):
+    # 1. Hyundai Palisade
+    palisade_res = client.post(
+        "/api/v1/vehicles",
+        json={
+            "vin": "KM8R7DGE6RU999999",
+            "year": 2024,
+            "make": "Hyundai",
+            "model": "Palisade",
+            "trim": "Calligraphy",
+            "current_mileage": 15000
+        }
+    )
+    assert palisade_res.status_code == 201
+    p_id = palisade_res.json()["id"]
+
+    client.post(f"/api/v1/vehicles/{p_id}/auto-discover")
+    c_res = client.get(f"/api/v1/consumables?vehicle_id={p_id}")
+    consumables = {c["category"]: c for c in c_res.json()}
+    assert "26320-3N000" in (consumables["OIL_FILTER"]["oem_part_number"] or "")
+    assert "18872-09085" in (consumables["SPARK_PLUGS"]["oem_part_number"] or "")
+    assert "6.87 Quarts" in consumables["ENGINE_OIL"]["specification"]
+
+    # 2. Buick Cascada
+    cascada_res = client.post(
+        "/api/v1/vehicles",
+        json={
+            "vin": "W04WH3N59KG999999",
+            "year": 2019,
+            "make": "Buick",
+            "model": "Cascada",
+            "trim": "Premium",
+            "current_mileage": 35000
+        }
+    )
+    assert cascada_res.status_code == 201
+    c_id = cascada_res.json()["id"]
+
+    client.post(f"/api/v1/vehicles/{c_id}/auto-discover")
+    casc_res = client.get(f"/api/v1/consumables?vehicle_id={c_id}")
+    c_items = {c["category"]: c for c in casc_res.json()}
+    assert "PF64" in (c_items["OIL_FILTER"]["oem_part_number"] or "")
+    assert "41-125" in (c_items["SPARK_PLUGS"]["oem_part_number"] or "")
+    assert "Dex-Cool" in c_items["COOLANT"]["item_name"]
+    assert "Convertible Top Hydraulic Fluid" in c_items["OTHER"]["item_name"]
