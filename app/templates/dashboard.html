@@ -1,0 +1,2048 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vehicle Maintenance & Operations Dashboard</title>
+    <style>
+        :root {
+            --primary: #1e3a8a;
+            --primary-hover: #1e40af;
+            --accent: #2563eb;
+            --bg: #f8fafc;
+            --sidebar-bg: #0f172a;
+            --card-bg: #ffffff;
+            --text-main: #0f172a;
+            --text-muted: #64748b;
+            --border: #e2e8f0;
+            --success: #10b981;
+            --warning: #f59e0b;
+            --danger: #ef4444;
+            --info: #0ea5e9;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--bg);
+            color: var(--text-main);
+            display: flex;
+            min-height: 100vh;
+        }
+        /* Sidebar */
+        .sidebar {
+            width: 260px;
+            background-color: var(--sidebar-bg);
+            color: #f8fafc;
+            display: flex;
+            flex-direction: column;
+            padding: 20px 0;
+            flex-shrink: 0;
+        }
+        .sidebar-brand {
+            padding: 0 20px 20px;
+            font-size: 1.15rem;
+            font-weight: 700;
+            border-bottom: 1px solid #1e293b;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            color: #38bdf8;
+        }
+        .nav-items {
+            list-style: none;
+            margin-top: 15px;
+            flex-grow: 1;
+        }
+        .nav-item {
+            padding: 12px 20px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-size: 0.95rem;
+            font-weight: 500;
+            color: #94a3b8;
+            transition: all 0.15s ease;
+        }
+        .nav-item:hover, .nav-item.active {
+            color: #ffffff;
+            background-color: #1e293b;
+            border-left: 4px solid var(--accent);
+        }
+        .sidebar-footer {
+            padding: 15px 20px;
+            font-size: 0.8rem;
+            color: #64748b;
+            border-top: 1px solid #1e293b;
+        }
+        /* Main Content */
+        .main-wrapper {
+            flex-grow: 1;
+            display: flex;
+            flex-direction: column;
+            overflow-y: auto;
+            max-height: 100vh;
+        }
+        .topbar {
+            background-color: #ffffff;
+            padding: 16px 28px;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+        .topbar-title {
+            font-size: 1.3rem;
+            font-weight: 700;
+            color: var(--primary);
+        }
+        .vehicle-selector-group {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        .select-input {
+            padding: 8px 14px;
+            border-radius: 8px;
+            border: 1px solid var(--border);
+            background: #fff;
+            font-size: 0.95rem;
+            font-weight: 600;
+            color: var(--primary);
+            cursor: pointer;
+        }
+        .content {
+            padding: 24px 28px;
+        }
+        /* Cards & Grid */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+        .stat-card {
+            background: var(--card-bg);
+            border-radius: 12px;
+            padding: 18px 20px;
+            border: 1px solid var(--border);
+            box-shadow: 0 1px 3px rgba(0,0,0,0.03);
+        }
+        .stat-card .label { font-size: 0.85rem; color: var(--text-muted); font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; }
+        .stat-card .value { font-size: 1.6rem; font-weight: 800; color: var(--primary); margin-top: 4px; }
+        .stat-card .sub { font-size: 0.8rem; color: var(--text-muted); margin-top: 4px; }
+
+        .card {
+            background: var(--card-bg);
+            border-radius: 12px;
+            padding: 20px;
+            border: 1px solid var(--border);
+            margin-bottom: 24px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.03);
+        }
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 16px;
+            padding-bottom: 12px;
+            border-bottom: 1px solid var(--border);
+        }
+        .card-title { font-size: 1.15rem; font-weight: 700; color: var(--text-main); display: flex; align-items: center; gap: 8px; }
+
+        /* Tables */
+        .table-responsive {
+            overflow-x: auto;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            text-align: left;
+            font-size: 0.9rem;
+        }
+        th {
+            background-color: #f1f5f9;
+            padding: 10px 14px;
+            font-weight: 600;
+            color: var(--text-muted);
+            border-bottom: 1px solid var(--border);
+        }
+        td {
+            padding: 12px 14px;
+            border-bottom: 1px solid var(--border);
+            vertical-align: middle;
+        }
+        tr:hover { background-color: #f8fafc; }
+
+        /* Badges */
+        .badge {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 6px;
+            font-size: 0.75rem;
+            font-weight: 700;
+        }
+        .badge-ok, .badge-active, .badge-delivered, .badge-completed { background: #dcfce7; color: #166534; }
+        .badge-due, .badge-warning, .badge-shipped, .badge-in-progress { background: #fef3c7; color: #92400e; }
+        .badge-overdue, .badge-critical, .badge-expired { background: #fee2e2; color: #991b1b; }
+        .badge-planned { background: #e0f2fe; color: #0369a1; }
+        .badge-waiting { background: #fae8ff; color: #86198f; }
+        .badge-cancelled { background: #f1f5f9; color: #64748b; }
+
+        /* Forms */
+        .form-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+            gap: 16px;
+            margin-bottom: 16px;
+        }
+        .form-group {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+        .form-group.full-width {
+            grid-column: 1 / -1;
+        }
+        label {
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: var(--text-main);
+        }
+        input, select, textarea {
+            padding: 9px 12px;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            font-size: 0.9rem;
+            background-color: #ffffff;
+            font-family: inherit;
+        }
+        input:focus, select:focus, textarea:focus {
+            outline: none;
+            border-color: var(--accent);
+            box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+        }
+        .btn {
+            background-color: var(--accent);
+            color: white;
+            padding: 9px 16px;
+            border-radius: 8px;
+            border: none;
+            font-weight: 600;
+            font-size: 0.9rem;
+            cursor: pointer;
+            transition: background 0.15s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .btn:hover { background-color: var(--primary-hover); }
+        .btn-success { background-color: var(--success); }
+        .btn-success:hover { background-color: #059669; }
+        .btn-danger { background-color: var(--danger); }
+        .btn-danger:hover { background-color: #dc2626; }
+        .btn-outline { background: transparent; border: 1px solid var(--border); color: var(--text-main); }
+        .btn-outline:hover { background: #f1f5f9; }
+        .btn-sm { padding: 5px 10px; font-size: 0.8rem; }
+
+        /* Tabs Content Visibility */
+        .tab-pane { display: none; }
+        .tab-pane.active { display: block; }
+
+        /* Toast */
+        .toast {
+            position: fixed;
+            bottom: 24px;
+            right: 24px;
+            padding: 14px 22px;
+            background: #10b981;
+            color: white;
+            border-radius: 8px;
+            font-weight: 600;
+            font-size: 0.95rem;
+            box-shadow: 0 4px 14px rgba(0,0,0,0.15);
+            display: none;
+            z-index: 1000;
+            animation: slideIn 0.2s ease-out;
+        }
+        @keyframes slideIn {
+            from { transform: translateY(20px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+
+        /* Modal Overlay & Dialog */
+        .modal-overlay {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(15, 23, 42, 0.6);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 100;
+            padding: 20px;
+        }
+        .modal-overlay.open { display: flex; }
+        .modal-content {
+            background: white;
+            border-radius: 14px;
+            width: 100%;
+            max-width: 620px;
+            max-height: 90vh;
+            overflow-y: auto;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+            border: 1px solid var(--border);
+        }
+        .modal-header {
+            padding: 18px 24px;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .modal-title { font-size: 1.2rem; font-weight: 700; color: var(--primary); }
+        .modal-close {
+            background: transparent;
+            border: none;
+            font-size: 1.4rem;
+            cursor: pointer;
+            color: var(--text-muted);
+        }
+        .modal-body { padding: 20px 24px; }
+        .modal-footer {
+            padding: 14px 24px;
+            border-top: 1px solid var(--border);
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+            background: #f8fafc;
+            border-bottom-left-radius: 14px;
+            border-bottom-right-radius: 14px;
+        }
+    </style>
+</head>
+<body>
+    <div id="toast" class="toast">Data saved successfully!</div>
+
+    <!-- Edit Vehicle Modal -->
+    <div id="editVehicleModal" class="modal-overlay">
+        <div class="modal-content">
+            <div class="modal-header">
+                <div class="modal-title">✏️ Edit Vehicle Information</div>
+                <button type="button" class="modal-close" onclick="closeEditVehicleModal()">&times;</button>
+            </div>
+            <form id="editVehicleForm" onsubmit="submitEditVehicle(event)">
+                <div class="modal-body">
+                    <input type="hidden" id="editVehicleId" name="vehicle_id">
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label>Year *</label>
+                            <input type="number" id="editVehicleYear" name="year" required min="1900" max="2100">
+                        </div>
+                        <div class="form-group">
+                            <label>Make *</label>
+                            <input type="text" id="editVehicleMake" name="make" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Model *</label>
+                            <input type="text" id="editVehicleModel" name="model" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Trim / Engine</label>
+                            <input type="text" id="editVehicleTrim" name="trim" placeholder="e.g. XLE Touring 3.5L V6">
+                        </div>
+                        <div class="form-group">
+                            <label>License Plate</label>
+                            <input type="text" id="editVehiclePlate" name="license_plate" placeholder="e.g. 7TYT882">
+                        </div>
+                        <div class="form-group">
+                            <label>📟 EZ-Pass / Toll Tag #</label>
+                            <input type="text" id="editVehicleEzpass" name="ezpass_transponder" placeholder="e.g. 02214988210">
+                        </div>
+                        <div class="form-group">
+                            <label>Estimated Annual Mileage</label>
+                            <input type="number" id="editVehicleAnnualMiles" name="estimated_annual_mileage">
+                        </div>
+                        <div class="form-group full-width">
+                            <label>Notes</label>
+                            <textarea id="editVehicleNotes" name="notes" rows="2"></textarea>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer" style="display: flex; justify-content: space-between;">
+                    <button type="button" class="btn btn-danger" onclick="deleteVehicleFromModal()">🗑️ Delete Vehicle</button>
+                    <div style="display: flex; gap: 10px;">
+                        <button type="button" class="btn btn-outline" onclick="closeEditVehicleModal()">Cancel</button>
+                        <button type="submit" class="btn btn-success">Save Vehicle Changes</button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Edit Work Order Modal -->
+    <div id="editWorkOrderModal" class="modal-overlay">
+        <div class="modal-content">
+            <div class="modal-header">
+                <div class="modal-title">✏️ Edit External Service Appointment</div>
+                <button type="button" class="modal-close" onclick="closeEditWorkOrderModal()">&times;</button>
+            </div>
+            <form id="editWorkOrderForm" onsubmit="submitEditWorkOrder(event)">
+                <div class="modal-body">
+                    <input type="hidden" id="editOrderId" name="order_id">
+                    <div class="form-grid">
+                        <div class="form-group full-width">
+                            <label>Service Summary / Scope *</label>
+                            <input type="text" id="editServiceSummary" name="service_summary" required placeholder="e.g. 120k Spark Plug & Transmission Service">
+                        </div>
+                        <div class="form-group">
+                            <label>Mechanic Shop *</label>
+                            <select id="editShopId" name="shop_id" required>
+                                {% for s in shops %}
+                                <option value="{{ s.id }}">{{ s.name }} (${{ s.hourly_labor_rate }}/hr)</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Appointment Status *</label>
+                            <select id="editStatus" name="status" required>
+                                <option value="PLANNED">PLANNED</option>
+                                <option value="DROPPED_OFF">DROPPED OFF</option>
+                                <option value="IN_PROGRESS">IN PROGRESS</option>
+                                <option value="WAITING_ON_PARTS">WAITING ON PARTS</option>
+                                <option value="COMPLETED">COMPLETED</option>
+                                <option value="CANCELLED">CANCELLED</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Scheduled Date *</label>
+                            <input type="date" id="editScheduledDate" name="scheduled_date" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Completion Date (Optional)</label>
+                            <input type="date" id="editCompletionDate" name="completion_date">
+                        </div>
+                        <div class="form-group">
+                            <label>Quoted Labor Cost ($)</label>
+                            <input type="number" step="0.01" id="editQuotedLabor" name="quoted_labor_cost">
+                        </div>
+                        <div class="form-group">
+                            <label>Final Labor Cost ($)</label>
+                            <input type="number" step="0.01" id="editFinalLabor" name="final_labor_cost" placeholder="Set upon completion">
+                        </div>
+                        <div class="form-group">
+                            <label>Invoice Number</label>
+                            <input type="text" id="editInvoiceNumber" name="invoice_number" placeholder="e.g. INV-2024-889">
+                        </div>
+                        <div class="form-group full-width">
+                            <label>Mechanic Notes & Turnaround Details</label>
+                            <textarea id="editMechanicNotes" name="mechanic_notes" rows="3" placeholder="Notes from mechanic, technician diagnosis, recommendations..."></textarea>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline" onclick="closeEditWorkOrderModal()">Cancel</button>
+                    <button type="submit" class="btn btn-success">Save Appointment Changes</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Edit Mechanic Shop Modal -->
+    <div id="editShopModal" class="modal-overlay">
+        <div class="modal-content">
+            <div class="modal-header">
+                <div class="modal-title">✏️ Edit Mechanic Shop Details</div>
+                <button type="button" class="modal-close" onclick="closeEditShopModal()">&times;</button>
+            </div>
+            <form id="editShopForm" onsubmit="submitEditShop(event)">
+                <div class="modal-body">
+                    <input type="hidden" id="editShopFormId" name="shop_id">
+                    <div class="form-grid">
+                        <div class="form-group full-width">
+                            <label>Shop / Business Name *</label>
+                            <input type="text" id="editShopName" name="name" required placeholder="e.g. Precision Japanese Auto">
+                        </div>
+                        <div class="form-group">
+                            <label>Primary Contact Name</label>
+                            <input type="text" id="editShopContact" name="contact_name" placeholder="e.g. Kenji Takahashi">
+                        </div>
+                        <div class="form-group">
+                            <label>Phone Number *</label>
+                            <input type="text" id="editShopPhone" name="phone" required placeholder="e.g. (408) 555-0199">
+                        </div>
+                        <div class="form-group">
+                            <label>Email Address</label>
+                            <input type="email" id="editShopEmail" name="email" placeholder="e.g. service@shop.com">
+                        </div>
+                        <div class="form-group">
+                            <label>Hourly Labor Rate ($/hr)</label>
+                            <input type="number" step="0.01" id="editShopRate" name="hourly_labor_rate" value="150.00">
+                        </div>
+                        <div class="form-group full-width">
+                            <label>Street Address *</label>
+                            <input type="text" id="editShopAddress" name="address" required placeholder="e.g. 1420 Commercial St, San Jose, CA">
+                        </div>
+                        <div class="form-group full-width">
+                            <label>Specialties & Certifications</label>
+                            <input type="text" id="editShopSpecialties" name="specialties" placeholder="e.g. Toyota / Lexus Master Tech, Transmission Flush Specialist">
+                        </div>
+                        <div class="form-group full-width">
+                            <label>Notes</label>
+                            <textarea id="editShopNotes" name="notes" rows="2" placeholder="Operating hours, loaner car policy, customer experience notes..."></textarea>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline" onclick="closeEditShopModal()">Cancel</button>
+                    <button type="submit" class="btn btn-success">Save Shop Changes</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Sidebar -->
+    <div class="sidebar">
+        <div class="sidebar-brand">
+            <span>🚗</span> VehicleOps Tracker
+        </div>
+        <ul class="nav-items">
+            <li class="nav-item active" onclick="switchTab('overview')">📊 Overview</li>
+            <li class="nav-item" onclick="switchTab('vehicles')">🚗 Vehicles</li>
+            <li class="nav-item" onclick="switchTab('documents')">📄 Documents & Policies</li>
+            <li class="nav-item" onclick="switchTab('maintenance')">🛠️ Maintenance & Intervals</li>
+            <li class="nav-item" onclick="switchTab('external')">🏢 External Work & Parts</li>
+            <li class="nav-item" onclick="switchTab('consumables')">🛢️ Consumables Cheat-Sheet</li>
+            <li class="nav-item" onclick="switchTab('guides')">📚 DIY Guides & Manuals</li>
+            <li class="nav-item" onclick="switchTab('knowledge')">💡 Quirks & Knowledge Base</li>
+            <li class="nav-item" onclick="switchTab('sync')">📅 Google Calendar & Alerts</li>
+        </ul>
+        <div class="sidebar-footer">
+            FastAPI + SQLite WAL Engine<br>
+            <a href="/docs" target="_blank" style="color: #38bdf8; text-decoration: none;">API Docs (Swagger) &rarr;</a>
+        </div>
+    </div>
+
+    <!-- Main Content Area -->
+    <div class="main-wrapper">
+        <!-- Top Bar -->
+        <div class="topbar">
+            <div class="topbar-title" id="pageTitle">Overview & Quick Entry</div>
+            <div class="vehicle-selector-group">
+                <label for="activeVehicleSelect">Active Vehicle:</label>
+                <select id="activeVehicleSelect" class="select-input" onchange="onVehicleChange()">
+                    {% for v in vehicles %}
+                    <option value="{{ v.id }}" {% if active_vehicle and v.id == active_vehicle.id %}selected{% endif %}>
+                        {{ v.year }} {{ v.make }} {{ v.model }} ({{ "{:,}".format(v.current_mileage) }} mi)
+                    </option>
+                    {% endfor %}
+                </select>
+                {% if active_vehicle %}
+                <a href="/v/{{ active_vehicle.id }}" target="_blank" class="btn btn-outline btn-sm">📱 Mobile Portal</a>
+                <a href="/api/v1/vehicles/{{ active_vehicle.id }}/qr" target="_blank" class="btn btn-outline btn-sm">🔲 QR Code</a>
+                {% endif %}
+            </div>
+        </div>
+
+        <div class="content">
+            <!-- TAB 1: OVERVIEW -->
+            <div id="pane-overview" class="tab-pane active">
+                {% if active_vehicle %}
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="label">Odometer Reading</div>
+                        <div class="value">{{ "{:,}".format(active_vehicle.current_mileage) }} <span style="font-size: 1rem; font-weight: normal;">mi</span></div>
+                        <div class="sub" style="display: flex; gap: 8px; flex-wrap: wrap; margin-top: 6px;">
+                            <span>VIN: <code>{{ active_vehicle.vin }}</code></span>
+                            {% if active_vehicle.license_plate %}<span>Plate: <strong>{{ active_vehicle.license_plate }}</strong></span>{% endif %}
+                            {% if active_vehicle.ezpass_transponder %}<span class="badge badge-planned">EZ-Pass: {{ active_vehicle.ezpass_transponder }}</span>{% endif %}
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="label">Upcoming Service Due</div>
+                        {% if forecasts and forecasts|length > 0 %}
+                        <div class="value" style="font-size: 1.15rem; margin-top: 8px;">{{ forecasts[0].service_name }}</div>
+                        <div class="sub">
+                            {% if forecasts[0].status.value == 'OVERDUE' %}
+                            <span class="badge badge-overdue">OVERDUE ({{ forecasts[0].miles_remaining }} mi)</span>
+                            {% elif forecasts[0].status.value == 'DUE_SOON' %}
+                            <span class="badge badge-due">DUE SOON ({{ forecasts[0].miles_remaining }} mi left)</span>
+                            {% else %}
+                            <span class="badge badge-ok">OK ({{ forecasts[0].miles_remaining }} mi left)</span>
+                            {% endif %}
+                        </div>
+                        {% else %}
+                        <div class="value" style="font-size: 1.15rem;">All Services Up to Date</div>
+                        {% endif %}
+                    </div>
+                    <div class="stat-card">
+                        <div class="label">Document Status</div>
+                        {% set exp_count = namespace(count=0) %}
+                        {% for d in documents %}
+                            {% if d.status.value != 'ACTIVE' %}{% set exp_count.count = exp_count.count + 1 %}{% endif %}
+                        {% endfor %}
+                        <div class="value">{{ documents|length }} <span style="font-size: 1rem; font-weight: normal;">Policies</span></div>
+                        <div class="sub">
+                            {% if exp_count.count > 0 %}
+                            <span class="badge badge-warning">{{ exp_count.count }} renewal(s) pending</span>
+                            {% else %}
+                            <span class="badge badge-active">All Active</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="label">Annual Estimate</div>
+                        <div class="value">{{ "{:,}".format(active_vehicle.estimated_annual_mileage) }} <span style="font-size: 1rem; font-weight: normal;">mi/yr</span></div>
+                        <div class="sub">~{{ (active_vehicle.estimated_annual_mileage / 365)|round|int }} miles/day</div>
+                    </div>
+                </div>
+
+                <!-- Fast Odometer Update Bar -->
+                <div class="card" style="background: linear-gradient(to right, #ffffff, #f0fdf4); border-left: 4px solid var(--success);">
+                    <form id="overviewOdometerForm" onsubmit="submitOdometer(event)" style="display: flex; gap: 16px; align-items: flex-end; flex-wrap: wrap;">
+                        <input type="hidden" name="vehicle_id" value="{{ active_vehicle.id }}">
+                        <div class="form-group" style="flex: 1; min-width: 200px;">
+                            <label>⚡ Quick Odometer Update for {{ active_vehicle.year }} {{ active_vehicle.model }}</label>
+                            <input type="number" id="quickOdoInput" name="current_mileage" min="{{ active_vehicle.current_mileage }}" value="{{ active_vehicle.current_mileage }}" required>
+                        </div>
+                        <button type="submit" class="btn btn-success">Update Odometer</button>
+                    </form>
+                </div>
+
+                <!-- Maintenance Due Highlights -->
+                <div class="card">
+                    <div class="card-header">
+                        <div class="card-title">🛠️ Next Due Maintenance Services</div>
+                        <button class="btn btn-sm" onclick="switchTab('maintenance')">+ Log Service</button>
+                    </div>
+                    <div class="table-responsive">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Service Name</th>
+                                    <th>Interval</th>
+                                    <th>Next Due Mileage</th>
+                                    <th>Miles Remaining</th>
+                                    <th>Projected Due Date</th>
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for f in forecasts %}
+                                <tr>
+                                    <td style="font-weight: 600;">{{ f.service_name }}</td>
+                                    <td>{{ "{:,}".format(f.interval_miles) }} mi / {{ f.interval_months }} mo</td>
+                                    <td>{{ "{:,}".format(f.next_due_mileage) }} mi</td>
+                                    <td>{{ "{:,}".format(f.miles_remaining) }} mi</td>
+                                    <td>{{ f.projected_due_date_by_mileage.strftime('%b %d, %Y') }}</td>
+                                    <td>
+                                        {% if f.status.value == 'OVERDUE' %}
+                                        <span class="badge badge-overdue">OVERDUE</span>
+                                        {% elif f.status.value == 'DUE_SOON' %}
+                                        <span class="badge badge-due">DUE SOON</span>
+                                        {% else %}
+                                        <span class="badge badge-ok">OK</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                {% else %}
+                <div class="card">
+                    <h2>No vehicles found. Please add a vehicle in the Vehicles tab.</h2>
+                </div>
+                {% endif %}
+            </div>
+
+            <!-- TAB 2: VEHICLES -->
+            <div id="pane-vehicles" class="tab-pane">
+                <div class="card">
+                    <div class="card-header">
+                        <div class="card-title">🚗 Add New Vehicle Record</div>
+                    </div>
+                    <form id="createVehicleForm" onsubmit="submitVehicle(event)">
+                        <div class="form-grid">
+                            <div class="form-group">
+                                <label>VIN (17 Characters) *</label>
+                                <input type="text" name="vin" required placeholder="e.g. 4T1BK1EB5EU123456" maxlength="17">
+                            </div>
+                            <div class="form-group">
+                                <label>Year *</label>
+                                <input type="number" name="year" required min="1900" max="2100" value="2014">
+                            </div>
+                            <div class="form-group">
+                                <label>Make *</label>
+                                <input type="text" name="make" required placeholder="e.g. Toyota" value="Toyota">
+                            </div>
+                            <div class="form-group">
+                                <label>Model *</label>
+                                <input type="text" name="model" required placeholder="e.g. Avalon" value="Avalon">
+                            </div>
+                            <div class="form-group">
+                                <label>Trim / Engine</label>
+                                <input type="text" name="trim" placeholder="e.g. XLE Touring 3.5L V6">
+                            </div>
+                            <div class="form-group">
+                                <label>License Plate</label>
+                                <input type="text" name="license_plate" placeholder="e.g. 7TYT882">
+                            </div>
+                            <div class="form-group">
+                                <label>📟 EZ-Pass / Toll Transponder #</label>
+                                <input type="text" name="ezpass_transponder" placeholder="e.g. 02214988210">
+                            </div>
+                            <div class="form-group">
+                                <label>Current Odometer (Miles) *</label>
+                                <input type="number" name="current_mileage" required min="0" value="105000">
+                            </div>
+                            <div class="form-group">
+                                <label>Estimated Annual Mileage</label>
+                                <input type="number" name="estimated_annual_mileage" value="12000">
+                            </div>
+                            <div class="form-group">
+                                <label>Purchase Date</label>
+                                <input type="date" name="purchase_date">
+                            </div>
+                            <div class="form-group full-width">
+                                <label>Notes</label>
+                                <textarea name="notes" rows="2" placeholder="Vehicle condition, packages, options..."></textarea>
+                            </div>
+                        </div>
+                        <button type="submit" class="btn btn-success">+ Save Vehicle</button>
+                    </form>
+                </div>
+
+                <div class="card">
+                    <div class="card-header">
+                        <div class="card-title">Registered Vehicles</div>
+                    </div>
+                    <div class="table-responsive">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>ID</th>
+                                    <th>Vehicle</th>
+                                    <th>VIN</th>
+                                    <th>License Plate</th>
+                                    <th>EZ-Pass Tag</th>
+                                    <th>Odometer</th>
+                                    <th>Annual Est.</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for v in vehicles %}
+                                <tr>
+                                    <td>{{ v.id }}</td>
+                                    <td style="font-weight: 600;">{{ v.year }} {{ v.make }} {{ v.model }} ({{ v.trim or '' }})</td>
+                                    <td><code>{{ v.vin }}</code></td>
+                                    <td>{{ v.license_plate or 'N/A' }}</td>
+                                    <td>
+                                        {% if v.ezpass_transponder %}
+                                        <span class="badge badge-planned">{{ v.ezpass_transponder }}</span>
+                                        {% else %}
+                                        <span style="color: var(--text-muted);">None</span>
+                                        {% endif %}
+                                    </td>
+                                    <td><strong>{{ "{:,}".format(v.current_mileage) }} mi</strong></td>
+                                    <td>{{ "{:,}".format(v.estimated_annual_mileage) }} mi/yr</td>
+                                    <td>
+                                        <div style="display: flex; gap: 6px;">
+                                            <button type="button" class="btn btn-sm btn-outline" onclick="openEditVehicleModal({{ v.id }}, {{ v.year }}, '{{ v.make|replace("'", "\\'") }}', '{{ v.model|replace("'", "\\'") }}', '{{ (v.trim or '')|replace("'", "\\'") }}', '{{ (v.license_plate or '')|replace("'", "\\'") }}', '{{ (v.ezpass_transponder or '')|replace("'", "\\'") }}', {{ v.estimated_annual_mileage }}, '{{ (v.notes or '')|replace("'", "\\'") }}')">✏️ Edit</button>
+                                            <a href="/v/{{ v.id }}" target="_blank" class="btn btn-sm btn-outline">Portal</a>
+                                            <a href="/api/v1/vehicles/{{ v.id }}/qr" target="_blank" class="btn btn-sm btn-outline">QR</a>
+                                            <button type="button" class="btn btn-sm btn-danger" onclick="deleteVehicle({{ v.id }}, '{{ v.year }} {{ v.make|replace("'", "\\'") }} {{ v.model|replace("'", "\\'") }}')" title="Delete Vehicle">🗑️</button>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TAB 3: DOCUMENTS & POLICIES -->
+            <div id="pane-documents" class="tab-pane">
+                <div class="card">
+                    <div class="card-header">
+                        <div class="card-title">📄 Add Vehicle Document / Policy Renewal</div>
+                    </div>
+                    <form id="createDocumentForm" onsubmit="submitDocument(event)">
+                        <input type="hidden" name="vehicle_id" id="docVehicleId" value="{{ active_vehicle.id if active_vehicle else 1 }}">
+                        <div class="form-grid">
+                            <div class="form-group">
+                                <label>Document Type *</label>
+                                <select name="doc_type" required>
+                                    <option value="REGISTRATION">State Registration</option>
+                                    <option value="INSURANCE">Insurance Policy</option>
+                                    <option value="EMISSIONS_INSPECTION">Smog / Emissions Inspection</option>
+                                    <option value="SAFETY_INSPECTION">Safety Inspection</option>
+                                    <option value="TITLE">Vehicle Title</option>
+                                    <option value="WARRANTY">Extended Warranty</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label>Policy / Document Number *</label>
+                                <input type="text" name="document_number" required placeholder="e.g. REG-2024-8891">
+                            </div>
+                            <div class="form-group">
+                                <label>Issuer / Provider *</label>
+                                <input type="text" name="issuer" required placeholder="e.g. Department of Motor Vehicles (DMV)">
+                            </div>
+                            <div class="form-group">
+                                <label>Effective Date *</label>
+                                <input type="date" name="effective_date" required>
+                            </div>
+                            <div class="form-group">
+                                <label>Expiration Date *</label>
+                                <input type="date" name="expiration_date" required>
+                            </div>
+                            <div class="form-group">
+                                <label>Alert Lead Window (Days)</label>
+                                <input type="number" name="lead_alert_days" value="30">
+                            </div>
+                            <div class="form-group full-width">
+                                <label>Notes</label>
+                                <textarea name="notes" rows="2" placeholder="Policy details, deductible, roadside assistance..."></textarea>
+                            </div>
+                        </div>
+                        <button type="submit" class="btn btn-success">+ Save Document</button>
+                    </form>
+                </div>
+
+                <div class="card">
+                    <div class="card-header">
+                        <div class="card-title">Tracked Documents for Active Vehicle</div>
+                    </div>
+                    <div class="table-responsive">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Type</th>
+                                    <th>Document / Policy #</th>
+                                    <th>Issuer</th>
+                                    <th>Effective</th>
+                                    <th>Expiration Date</th>
+                                    <th>Status</th>
+                                    <th>Calendar Sync</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for d in documents %}
+                                <tr>
+                                    <td style="font-weight: 600;">{{ d.doc_type.value.replace('_', ' ').title() }}</td>
+                                    <td><code>{{ d.document_number }}</code></td>
+                                    <td>{{ d.issuer }}</td>
+                                    <td>{{ d.effective_date.strftime('%b %d, %Y') }}</td>
+                                    <td>{{ d.expiration_date.strftime('%b %d, %Y') }}</td>
+                                    <td>
+                                        {% if d.status.value == 'ACTIVE' %}
+                                        <span class="badge badge-active">{{ d.days_until_expiration }}d remaining</span>
+                                        {% elif d.status.value == 'EXPIRING_WARNING' %}
+                                        <span class="badge badge-warning">{{ d.days_until_expiration }}d left</span>
+                                        {% elif d.status.value == 'EXPIRING_CRITICAL' %}
+                                        <span class="badge badge-critical">{{ d.days_until_expiration }}d left</span>
+                                        {% else %}
+                                        <span class="badge badge-expired">EXPIRED</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <button class="btn btn-sm btn-outline" onclick="syncDocToCalendar({{ d.id }})">📅 Push to GCal</button>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TAB 4: MAINTENANCE & LOGS -->
+            <div id="pane-maintenance" class="tab-pane">
+                <div class="card">
+                    <div class="card-header">
+                        <div class="card-title">📝 Log Completed Maintenance Record</div>
+                    </div>
+                    <form id="createServiceRecordForm" onsubmit="submitServiceRecord(event)">
+                        <input type="hidden" name="vehicle_id" id="serviceVehicleId" value="{{ active_vehicle.id if active_vehicle else 1 }}">
+                        <div class="form-grid">
+                            <div class="form-group">
+                                <label>Service Performed *</label>
+                                <input type="text" name="service_name" required placeholder="e.g. Engine Oil & Filter Change (0W-20)">
+                            </div>
+                            <div class="form-group">
+                                <label>Completed Mileage *</label>
+                                <input type="number" name="completed_mileage" required min="0" value="{{ active_vehicle.current_mileage if active_vehicle else 105000 }}">
+                            </div>
+                            <div class="form-group">
+                                <label>Service Date *</label>
+                                <input type="date" name="completed_date" required>
+                            </div>
+                            <div class="form-group">
+                                <label>Performed By</label>
+                                <select name="performed_by_type">
+                                    <option value="DIY">DIY (Self)</option>
+                                    <option value="EXTERNAL_SHOP">Independent Mechanic Shop</option>
+                                    <option value="DEALERSHIP">Toyota Dealership</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label>Labor Cost ($)</label>
+                                <input type="number" step="0.01" name="labor_cost" value="0.00">
+                            </div>
+                            <div class="form-group">
+                                <label>Parts Cost ($)</label>
+                                <input type="number" step="0.01" name="parts_cost" value="0.00">
+                            </div>
+                            <div class="form-group full-width">
+                                <label>Notes & Parts Used</label>
+                                <textarea name="notes" rows="2" placeholder="Part numbers, oil brand, torque specs..."></textarea>
+                            </div>
+                        </div>
+                        <button type="submit" class="btn btn-success">+ Save Service Record</button>
+                    </form>
+                </div>
+
+                <div class="card">
+                    <div class="card-header">
+                        <div class="card-title">Maintenance Interval Forecasts (Dual-Threshold)</div>
+                    </div>
+                    <div class="table-responsive">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Service Name</th>
+                                    <th>Factory Interval</th>
+                                    <th>Last Completed</th>
+                                    <th>Next Due Mileage</th>
+                                    <th>Projected Due Date</th>
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for f in forecasts %}
+                                <tr>
+                                    <td style="font-weight: 600;">{{ f.service_name }}</td>
+                                    <td>{{ "{:,}".format(f.interval_miles) }} mi / {{ f.interval_months }} mo</td>
+                                    <td>
+                                        {% if f.last_completed_date %}
+                                        {{ "{:,}".format(f.last_completed_mileage) }} mi ({{ f.last_completed_date.strftime('%b %d, %Y') }})
+                                        {% else %}
+                                        <em>Baseline</em>
+                                        {% endif %}
+                                    </td>
+                                    <td>{{ "{:,}".format(f.next_due_mileage) }} mi</td>
+                                    <td>{{ f.projected_due_date_by_mileage.strftime('%b %d, %Y') }}</td>
+                                    <td>
+                                        {% if f.status.value == 'OVERDUE' %}
+                                        <span class="badge badge-overdue">OVERDUE</span>
+                                        {% elif f.status.value == 'DUE_SOON' %}
+                                        <span class="badge badge-due">DUE SOON</span>
+                                        {% else %}
+                                        <span class="badge badge-ok">OK</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header">
+                        <div class="card-title">Completed Service History Log</div>
+                    </div>
+                    <div class="table-responsive">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Date</th>
+                                    <th>Service</th>
+                                    <th>Mileage</th>
+                                    <th>Type</th>
+                                    <th>Total Cost</th>
+                                    <th>Notes</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for r in service_records %}
+                                <tr>
+                                    <td>{{ r.completed_date.strftime('%b %d, %Y') }}</td>
+                                    <td style="font-weight: 600;">{{ r.service_name }}</td>
+                                    <td>{{ "{:,}".format(r.completed_mileage) }} mi</td>
+                                    <td><span class="badge badge-planned">{{ r.performed_by_type.value }}</span></td>
+                                    <td>${{ "%.2f"|format(r.total_cost) }}</td>
+                                    <td style="color: var(--text-muted);">{{ r.notes or 'None' }}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TAB 5: EXTERNAL SERVICE & PARTS -->
+            <div id="pane-external" class="tab-pane">
+                <!-- 1. Mechanic Shops Management Section -->
+                <div class="card">
+                    <div class="card-header">
+                        <div class="card-title">🏢 Registered Mechanic Shops & Providers</div>
+                    </div>
+                    <div class="form-grid" style="grid-template-columns: 1fr 2fr; gap: 20px; align-items: start;">
+                        <!-- Register Shop Form -->
+                        <div style="background: #f8fafc; padding: 16px; border-radius: 10px; border: 1px solid var(--border);">
+                            <h4 style="font-size: 0.95rem; margin-bottom: 12px; color: var(--primary);">+ Register New Mechanic Shop</h4>
+                            <form id="createShopForm" onsubmit="submitShop(event)">
+                                <div class="form-group" style="margin-bottom: 10px;">
+                                    <label>Shop / Business Name *</label>
+                                    <input type="text" name="name" required placeholder="e.g. Master Auto Works">
+                                </div>
+                                <div class="form-group" style="margin-bottom: 10px;">
+                                    <label>Contact Name</label>
+                                    <input type="text" name="contact_name" placeholder="e.g. Mike Johnson">
+                                </div>
+                                <div class="form-group" style="margin-bottom: 10px;">
+                                    <label>Phone Number *</label>
+                                    <input type="text" name="phone" required placeholder="e.g. (555) 123-4567">
+                                </div>
+                                <div class="form-group" style="margin-bottom: 10px;">
+                                    <label>Hourly Labor Rate ($/hr)</label>
+                                    <input type="number" step="0.01" name="hourly_labor_rate" value="140.00">
+                                </div>
+                                <div class="form-group" style="margin-bottom: 10px;">
+                                    <label>Address *</label>
+                                    <input type="text" name="address" required placeholder="e.g. 500 Oak St, City, ST">
+                                </div>
+                                <div class="form-group" style="margin-bottom: 14px;">
+                                    <label>Specialties</label>
+                                    <input type="text" name="specialties" placeholder="e.g. Japanese Imports, Diagnostics">
+                                </div>
+                                <button type="submit" class="btn btn-success" style="width: 100%;">+ Save Mechanic Shop</button>
+                            </form>
+                        </div>
+
+                        <!-- Existing Shops Table -->
+                        <div class="table-responsive">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>Shop Name</th>
+                                        <th>Contact / Phone</th>
+                                        <th>Labor Rate</th>
+                                        <th>Address & Specialties</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for s in shops %}
+                                    <tr>
+                                        <td style="font-weight: 700; color: var(--primary);">{{ s.name }}</td>
+                                        <td>
+                                            <div>{{ s.contact_name or 'Main Desk' }}</div>
+                                            <div style="font-size: 0.8rem; color: var(--text-muted);">{{ s.phone }}</div>
+                                        </td>
+                                        <td><strong>${{ "%.2f"|format(s.hourly_labor_rate) }}</strong>/hr</td>
+                                        <td style="font-size: 0.85rem;">
+                                            <div>{{ s.address }}</div>
+                                            <div style="color: var(--accent);">{{ s.specialties or '' }}</div>
+                                        </td>
+                                        <td>
+                                            <div style="display: flex; gap: 6px;">
+                                                <button type="button" class="btn btn-sm btn-outline" onclick="openEditShopModal({{ s.id }}, '{{ s.name|replace("'", "\\'") }}', '{{ (s.contact_name or '')|replace("'", "\\'") }}', '{{ s.phone }}', '{{ s.email or '' }}', {{ s.hourly_labor_rate }}, '{{ s.address|replace("'", "\\'") }}', '{{ (s.specialties or '')|replace("'", "\\'") }}', '{{ (s.notes or '')|replace("'", "\\'") }}')">✏️ Edit</button>
+                                                <button type="button" class="btn btn-sm btn-danger" onclick="deleteShop({{ s.id }})" title="Delete Shop">🗑️</button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                    {% else %}
+                                    <tr>
+                                        <td colspan="5" style="text-align: center; color: var(--text-muted);">No shops registered. Add one using the form on the left.</td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 2. Plan Work Order & Sourced Parts Forms -->
+                <div class="form-grid" style="grid-template-columns: 1fr 1fr;">
+                    <!-- Create Work Order Form -->
+                    <div class="card">
+                        <div class="card-header">
+                            <div class="card-title">📅 Schedule External Work Order</div>
+                        </div>
+                        <form id="createWorkOrderForm" onsubmit="submitWorkOrder(event)">
+                            <input type="hidden" name="vehicle_id" value="{{ active_vehicle.id if active_vehicle else 1 }}">
+                            <div class="form-group" style="margin-bottom: 12px;">
+                                <label>Mechanic Shop *</label>
+                                <select id="workOrderShopSelect" name="shop_id" required>
+                                    {% for s in shops %}
+                                    <option value="{{ s.id }}">{{ s.name }} (${{ s.hourly_labor_rate }}/hr) - {{ s.phone }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="form-group" style="margin-bottom: 12px;">
+                                <label>Service Summary *</label>
+                                <input type="text" name="service_summary" required placeholder="e.g. 120k Spark Plug & Trans Service">
+                            </div>
+                            <div class="form-group" style="margin-bottom: 12px;">
+                                <label>Scheduled Appointment Date *</label>
+                                <input type="date" name="scheduled_date" required>
+                            </div>
+                            <div class="form-group" style="margin-bottom: 12px;">
+                                <label>Quoted Labor Cost ($)</label>
+                                <input type="number" step="0.01" name="quoted_labor_cost" value="200.00">
+                            </div>
+                            <div class="form-group" style="margin-bottom: 16px;">
+                                <label>Mechanic Notes</label>
+                                <textarea name="mechanic_notes" rows="2" placeholder="Customer sourcing parts, drop off early morning..."></textarea>
+                            </div>
+                            <button type="submit" class="btn btn-success">+ Schedule Work Order</button>
+                        </form>
+                    </div>
+
+                    <!-- Add Sourced Part Form -->
+                    <div class="card">
+                        <div class="card-header">
+                            <div class="card-title">📦 Add Sourced Part</div>
+                        </div>
+                        <form id="createPartForm" onsubmit="submitPart(event)">
+                            <input type="hidden" name="vehicle_id" value="{{ active_vehicle.id if active_vehicle else 1 }}">
+                            <div class="form-group" style="margin-bottom: 12px;">
+                                <label>Link to Work Order (Optional)</label>
+                                <select name="work_order_id">
+                                    <option value="">-- Standalone Part Order --</option>
+                                    {% for o in work_orders %}
+                                    <option value="{{ o.id }}">Order #{{ o.id }}: {{ o.service_summary }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="form-group" style="margin-bottom: 12px;">
+                                <label>Part Name *</label>
+                                <input type="text" name="part_name" required placeholder="e.g. Denso Iridium Spark Plugs (FK20HR11)">
+                            </div>
+                            <div class="form-group" style="margin-bottom: 12px;">
+                                <label>OEM / Manufacturer Part #</label>
+                                <input type="text" name="oem_part_number" placeholder="e.g. 90919-01247">
+                            </div>
+                            <div class="form-group" style="margin-bottom: 12px;">
+                                <label>Supplier *</label>
+                                <input type="text" name="supplier" value="RockAuto" required placeholder="e.g. RockAuto, Toyota Dealer">
+                            </div>
+                            <div class="form-grid" style="margin-bottom: 12px;">
+                                <div class="form-group">
+                                    <label>Unit Cost ($) *</label>
+                                    <input type="number" step="0.01" name="unit_cost" required value="10.00">
+                                </div>
+                                <div class="form-group">
+                                    <label>Quantity *</label>
+                                    <input type="number" name="quantity" required min="1" value="6">
+                                </div>
+                            </div>
+                            <div class="form-group" style="margin-bottom: 16px;">
+                                <label>Status & Tracking Number</label>
+                                <div style="display: flex; gap: 8px;">
+                                    <select name="order_status" style="width: 130px;">
+                                        <option value="RESEARCHING">Researching</option>
+                                        <option value="ORDERED">Ordered</option>
+                                        <option value="SHIPPED">Shipped</option>
+                                        <option value="DELIVERED" selected>Delivered</option>
+                                    </select>
+                                    <input type="text" name="tracking_number" placeholder="Tracking #" style="flex: 1;">
+                                </div>
+                            </div>
+                            <button type="submit" class="btn btn-success">+ Save Part Sourcing</button>
+                        </form>
+                    </div>
+                </div>
+
+                <!-- 3. Active Work Orders Table with EDIT button -->
+                <div class="card">
+                    <div class="card-header">
+                        <div class="card-title">External Work Orders & Appointments</div>
+                    </div>
+                    <div class="table-responsive">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Order #</th>
+                                    <th>Shop</th>
+                                    <th>Service</th>
+                                    <th>Scheduled Date</th>
+                                    <th>Parts Cost</th>
+                                    <th>Labor Cost</th>
+                                    <th>Total Cost</th>
+                                    <th>Status</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for o in work_orders %}
+                                <tr>
+                                    <td>#{{ o.id }}</td>
+                                    <td style="font-weight: 600;">{{ o.shop_name or 'Independent Shop' }}</td>
+                                    <td>{{ o.service_summary }}</td>
+                                    <td>{{ o.scheduled_date.strftime('%b %d, %Y') }}</td>
+                                    <td>${{ "%.2f"|format(o.total_parts_cost) }}</td>
+                                    <td>${{ "%.2f"|format(o.final_labor_cost if o.final_labor_cost is not none else o.quoted_labor_cost) }}</td>
+                                    <td style="font-weight: 700; color: var(--primary);">${{ "%.2f"|format(o.total_order_cost) }}</td>
+                                    <td>
+                                        {% if o.status.value == 'COMPLETED' %}
+                                        <span class="badge badge-completed">COMPLETED</span>
+                                        {% elif o.status.value == 'IN_PROGRESS' %}
+                                        <span class="badge badge-in-progress">IN PROGRESS</span>
+                                        {% elif o.status.value == 'WAITING_ON_PARTS' %}
+                                        <span class="badge badge-waiting">WAITING ON PARTS</span>
+                                        {% elif o.status.value == 'DROPPED_OFF' %}
+                                        <span class="badge badge-warning">DROPPED OFF</span>
+                                        {% elif o.status.value == 'CANCELLED' %}
+                                        <span class="badge badge-cancelled">CANCELLED</span>
+                                        {% else %}
+                                        <span class="badge badge-planned">PLANNED</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <div style="display: flex; gap: 6px; align-items: center;">
+                                            <button type="button" class="btn btn-sm btn-outline" onclick="openEditWorkOrderModal({{ o.id }}, {{ o.shop_id }}, '{{ o.service_summary|replace("'", "\\'") }}', '{{ o.scheduled_date.isoformat() }}', '{{ o.status.value }}', {{ o.quoted_labor_cost }}, {{ o.final_labor_cost if o.final_labor_cost is not none else 'null' }}, '{{ (o.invoice_number or '')|replace("'", "\\'") }}', '{{ (o.mechanic_notes or '')|replace("'", "\\'") }}', '{{ o.completion_date.isoformat() if o.completion_date else '' }}')">✏️ Edit</button>
+                                            <button type="button" class="btn btn-sm btn-outline" onclick="syncOrderToCalendar({{ o.id }})">📅 GCal</button>
+                                            <button type="button" class="btn btn-sm btn-danger" onclick="deleteWorkOrder({{ o.id }})" title="Delete Work Order">🗑️</button>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% else %}
+                                <tr>
+                                    <td colspan="9" style="text-align: center; color: var(--text-muted);">No external work orders scheduled yet.</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TAB 6: CONSUMABLES CHEAT SHEET -->
+            <div id="pane-consumables" class="tab-pane">
+                <div class="card">
+                    <div class="card-header">
+                        <div class="card-title">🛢️ Add Consumable Specification / Part Number</div>
+                    </div>
+                    <form id="createConsumableForm" onsubmit="submitConsumable(event)">
+                        <input type="hidden" name="vehicle_id" value="{{ active_vehicle.id if active_vehicle else 1 }}">
+                        <div class="form-grid">
+                            <div class="form-group">
+                                <label>Category *</label>
+                                <select name="category" required>
+                                    <option value="WIPER_BLADES">Wiper Blades</option>
+                                    <option value="ENGINE_AIR_FILTER">Engine Air Filter</option>
+                                    <option value="CABIN_AIR_FILTER">Cabin Air Filter</option>
+                                    <option value="TIRES">Tires</option>
+                                    <option value="TIRE_PRESSURE">Tire Pressure (PSI)</option>
+                                    <option value="ENGINE_OIL">Engine Motor Oil</option>
+                                    <option value="OIL_FILTER">Oil Filter</option>
+                                    <option value="FUEL_GRADE">Fuel Grade & Tank Capacity</option>
+                                    <option value="SPARK_PLUGS">Spark Plugs</option>
+                                    <option value="TRANSMISSION_FLUID">Transmission Fluid</option>
+                                    <option value="BRAKE_FLUID">Brake Fluid</option>
+                                    <option value="COOLANT">Engine Coolant</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label>Item Name *</label>
+                                <input type="text" name="item_name" required placeholder="e.g. Driver Wiper Blade">
+                            </div>
+                            <div class="form-group">
+                                <label>Specification / Capacity *</label>
+                                <input type="text" name="specification" required placeholder="e.g. 26 Inches (650mm), 0W-20 Full Synthetic (6.4 qt)">
+                            </div>
+                            <div class="form-group">
+                                <label>OEM Part Number</label>
+                                <input type="text" name="oem_part_number" placeholder="e.g. 85222-06130">
+                            </div>
+                            <div class="form-group">
+                                <label>Aftermarket Alternatives</label>
+                                <input type="text" name="aftermarket_alternatives" placeholder="e.g. Bosch ICON 26A / Rain-X">
+                            </div>
+                            <div class="form-group">
+                                <label>Replacement Interval Summary</label>
+                                <input type="text" name="replacement_interval_summary" placeholder="e.g. Every 10,000 miles / 12 mo">
+                            </div>
+                        </div>
+                        <button type="submit" class="btn btn-success">+ Save Consumable Spec</button>
+                    </form>
+                </div>
+
+                <div class="card">
+                    <div class="card-header">
+                        <div class="card-title">Consumables & Specifications Cheat Sheet</div>
+                    </div>
+                    <div class="table-responsive">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Category</th>
+                                    <th>Item</th>
+                                    <th>Specification / Capacity</th>
+                                    <th>OEM Part #</th>
+                                    <th>Aftermarket Cross-Reference</th>
+                                    <th>Interval</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for c in consumables %}
+                                <tr>
+                                    <td><span class="badge badge-planned">{{ c.category.value.replace('_', ' ') }}</span></td>
+                                    <td style="font-weight: 600;">{{ c.item_name }}</td>
+                                    <td>{{ c.specification }}</td>
+                                    <td><code>{{ c.oem_part_number or 'N/A' }}</code></td>
+                                    <td style="color: var(--text-muted);">{{ c.aftermarket_alternatives or 'N/A' }}</td>
+                                    <td>{{ c.replacement_interval_summary or 'N/A' }}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TAB 7: DIY GUIDES & MANUALS -->
+            <div id="pane-guides" class="tab-pane">
+                <div class="card">
+                    <div class="card-header">
+                        <div class="card-title">📚 Add Reference Manual or DIY Repair Guide</div>
+                    </div>
+                    <form id="createGuideForm" onsubmit="submitGuide(event)">
+                        <input type="hidden" name="vehicle_id" value="{{ active_vehicle.id if active_vehicle else 1 }}">
+                        <div class="form-grid">
+                            <div class="form-group">
+                                <label>Guide Title *</label>
+                                <input type="text" name="title" required placeholder="e.g. 2GR-FE Spark Plug Replacement Walkthrough">
+                            </div>
+                            <div class="form-group">
+                                <label>Category</label>
+                                <select name="doc_category">
+                                    <option value="COMMUNITY_DIY_GUIDE">Community DIY Guide</option>
+                                    <option value="OFFICIAL_MANUAL">Official Factory Manual</option>
+                                    <option value="TSB_BULLETIN">TSB Technical Bulletin</option>
+                                    <option value="VIDEO_TUTORIAL">Video Guide / YouTube</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label>Difficulty</label>
+                                <select name="difficulty">
+                                    <option value="BEGINNER">Beginner</option>
+                                    <option value="INTERMEDIATE" selected>Intermediate</option>
+                                    <option value="ADVANCED">Advanced</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label>Source Name / Forum URL</label>
+                                <input type="text" name="source_name_or_url" value="ToyotaNation" placeholder="e.g. ToyotaNation, YouTube">
+                            </div>
+                            <div class="form-group full-width">
+                                <label>Tools Required</label>
+                                <input type="text" name="tools_required" placeholder="e.g. 10mm socket, 5/8 spark plug socket, swivel ratchet...">
+                            </div>
+                            <div class="form-group full-width">
+                                <label>Step-by-Step Instructions *</label>
+                                <textarea name="step_by_step_instructions" required rows="4" placeholder="1. Disconnect battery...\n2. Remove wiper cowl for rear plug clearance..."></textarea>
+                            </div>
+                            <div class="form-group full-width">
+                                <label>Early Service Experience / Community Tips</label>
+                                <textarea name="early_service_community_tips" rows="2" placeholder="Owners who did this at 100k recommend replacing the intake plenum gasket 17176-0P020..."></textarea>
+                            </div>
+                        </div>
+                        <button type="submit" class="btn btn-success">+ Save Repair Guide</button>
+                    </form>
+                </div>
+
+                <div class="card">
+                    <div class="card-header">
+                        <div class="card-title">Stored Repair Guides & Manuals</div>
+                    </div>
+                    {% for g in reference_docs %}
+                    <div style="border-bottom: 1px solid var(--border); padding: 16px 0;">
+                        <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+                            <div>
+                                <h3 style="font-size: 1.1rem; color: var(--primary);">{{ g.title }}</h3>
+                                <div style="font-size: 0.8rem; color: var(--text-muted); margin-top: 4px;">
+                                    Source: {{ g.source_name_or_url }} | Difficulty: <span class="badge badge-planned">{{ g.difficulty.value }}</span>
+                                </div>
+                            </div>
+                        </div>
+                        {% if g.tools_required %}
+                        <div style="font-size: 0.85rem; margin-top: 8px;"><strong>🛠️ Tools:</strong> {{ g.tools_required }}</div>
+                        {% endif %}
+                        <pre style="background: #f8fafc; padding: 12px; border-radius: 8px; font-size: 0.85rem; margin-top: 8px; white-space: pre-wrap; font-family: inherit; border: 1px solid var(--border);">{{ g.step_by_step_instructions }}</pre>
+                        {% if g.early_service_community_tips %}
+                        <div style="font-size: 0.85rem; margin-top: 8px; color: #92400e; background: #fef3c7; padding: 8px 12px; border-radius: 6px;">
+                            <strong>💡 Community Tip:</strong> {{ g.early_service_community_tips }}
+                        </div>
+                        {% endif %}
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <!-- TAB 8: QUIRKS & KNOWLEDGE -->
+            <div id="pane-knowledge" class="tab-pane">
+                <div class="card">
+                    <div class="card-header">
+                        <div class="card-title">💡 Add Vehicle Quirk or Knowledge Item</div>
+                    </div>
+                    <form id="createKnowledgeForm" onsubmit="submitKnowledge(event)">
+                        <input type="hidden" name="vehicle_id" value="{{ active_vehicle.id if active_vehicle else 1 }}">
+                        <div class="form-grid">
+                            <div class="form-group">
+                                <label>Title *</label>
+                                <input type="text" name="title" required placeholder="e.g. Cold Start VVT-i Camshaft Gear Rattle">
+                            </div>
+                            <div class="form-group">
+                                <label>Category</label>
+                                <select name="category">
+                                    <option value="KNOWN_QUIRK">Known Quirk</option>
+                                    <option value="COMMON_FAILURE_POINT">Common Failure Point</option>
+                                    <option value="REAL_WORLD_PERFORMANCE">Real-World Performance / MPG</option>
+                                    <option value="COMMUNITY_WISDOM">Community Wisdom</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label>Component System</label>
+                                <select name="component_system">
+                                    <option value="ENGINE">Engine</option>
+                                    <option value="TRANSMISSION">Transmission</option>
+                                    <option value="SUSPENSION">Suspension</option>
+                                    <option value="BRAKES">Brakes</option>
+                                    <option value="ELECTRICAL">Electrical</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label>Severity Level</label>
+                                <select name="severity">
+                                    <option value="INFO">Info</option>
+                                    <option value="WATCH_ITEM" selected>Watch Item</option>
+                                    <option value="MODERATE_RISK">Moderate Risk</option>
+                                    <option value="CRITICAL_REPAIR">Critical Repair</option>
+                                </select>
+                            </div>
+                            <div class="form-group full-width">
+                                <label>Description *</label>
+                                <textarea name="description" required rows="2" placeholder="Describe the symptom or behavior..."></textarea>
+                            </div>
+                            <div class="form-group full-width">
+                                <label>Recommended Action</label>
+                                <textarea name="recommended_action" rows="2" placeholder="Preventative steps, OEM part replacement..."></textarea>
+                            </div>
+                        </div>
+                        <button type="submit" class="btn btn-success">+ Save Knowledge Entry</button>
+                    </form>
+                </div>
+
+                <div class="card">
+                    <div class="card-header">
+                        <div class="card-title">Real-World Quirks & Community Intelligence</div>
+                    </div>
+                    {% for k in knowledge_records %}
+                    <div style="border-bottom: 1px solid var(--border); padding: 14px 0;">
+                        <div style="display: flex; justify-content: space-between; align-items: center;">
+                            <h4 style="font-size: 1rem; color: var(--primary);">{{ k.title }}</h4>
+                            <span class="badge badge-planned">{{ k.category.value.replace('_', ' ') }}</span>
+                        </div>
+                        <p style="font-size: 0.9rem; margin-top: 6px;">{{ k.description }}</p>
+                        {% if k.recommended_action %}
+                        <div style="font-size: 0.85rem; margin-top: 6px; color: #065f46; background: #d1fae5; padding: 6px 10px; border-radius: 6px;">
+                            <strong>Recommendation:</strong> {{ k.recommended_action }}
+                        </div>
+                        {% endif %}
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <!-- TAB 9: CALENDAR & ALERTS -->
+            <div id="pane-sync" class="tab-pane">
+                <div class="card">
+                    <div class="card-header">
+                        <div class="card-title">📅 Google Calendar Synchronization & Reminders</div>
+                    </div>
+                    <p style="font-size: 0.9rem; color: var(--text-muted); margin-bottom: 16px;">
+                        Pushes confirmed service appointments and document renewal deadlines to Google Calendar with custom automated reminder overrides (30d/14d/2d email & popups).
+                    </p>
+                    <div style="display: flex; gap: 12px; flex-wrap: wrap;">
+                        <button class="btn" onclick="triggerImmediateChecks()">🔔 Run Scheduled Notification Checks Now</button>
+                        <button class="btn btn-outline" onclick="sendTestNotification()">📣 Send Test Desktop Notification</button>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header">
+                        <div class="card-title">Recent Notification & Dispatch History</div>
+                    </div>
+                    <div class="table-responsive">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Timestamp</th>
+                                    <th>Event Type</th>
+                                    <th>Title</th>
+                                    <th>Message</th>
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for n in notifications %}
+                                <tr>
+                                    <td>{{ n.created_at.strftime('%b %d, %H:%M') }}</td>
+                                    <td><span class="badge badge-planned">{{ n.event_type }}</span></td>
+                                    <td style="font-weight: 600;">{{ n.title }}</td>
+                                    <td style="font-size: 0.85rem;">{{ n.message }}</td>
+                                    <td><span class="badge badge-delivered">Delivered</span></td>
+                                </tr>
+                                {% else %}
+                                <tr>
+                                    <td colspan="5" style="text-align: center; color: var(--text-muted);">No notification logs recorded yet.</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function showToast(msg) {
+            const t = document.getElementById('toast');
+            t.innerText = msg;
+            t.style.display = 'block';
+            setTimeout(() => { t.style.display = 'none'; }, 3500);
+        }
+
+        function switchTab(tabName) {
+            document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
+            document.querySelectorAll('.nav-item').forEach(i => i.classList.remove('active'));
+            
+            const pane = document.getElementById('pane-' + tabName);
+            if (pane) pane.classList.add('active');
+
+            const titles = {
+                'overview': 'Overview & Quick Entry',
+                'vehicles': 'Vehicle Records & Management',
+                'documents': 'Documents, Policies & Renewals',
+                'maintenance': 'Maintenance Intervals & History',
+                'external': 'External Service Orders & Parts',
+                'consumables': 'Consumables & Fluid Specs',
+                'guides': 'DIY Repair Guides & Manuals',
+                'knowledge': 'Vehicle Quirks & Knowledge Base',
+                'sync': 'Google Calendar & Local Notifications'
+            };
+            document.getElementById('pageTitle').innerText = titles[tabName] || 'Dashboard';
+        }
+
+        function onVehicleChange() {
+            const sel = document.getElementById('activeVehicleSelect');
+            const vId = sel.value;
+            window.location.href = '/dashboard?vehicle_id=' + vId;
+        }
+
+        /* --- Modal Operations for Editing Vehicle --- */
+        function openEditVehicleModal(id, year, make, model, trim, plate, ezpass, annualMiles, notes) {
+            document.getElementById('editVehicleId').value = id;
+            document.getElementById('editVehicleYear').value = year;
+            document.getElementById('editVehicleMake').value = make;
+            document.getElementById('editVehicleModel').value = model;
+            document.getElementById('editVehicleTrim').value = trim || '';
+            document.getElementById('editVehiclePlate').value = plate || '';
+            document.getElementById('editVehicleEzpass').value = ezpass || '';
+            document.getElementById('editVehicleAnnualMiles').value = annualMiles || 12000;
+            document.getElementById('editVehicleNotes').value = notes || '';
+            document.getElementById('editVehicleModal').classList.add('open');
+        }
+
+        function closeEditVehicleModal() {
+            document.getElementById('editVehicleModal').classList.remove('open');
+        }
+
+        async function submitEditVehicle(e) {
+            e.preventDefault();
+            const form = e.target;
+            const vId = document.getElementById('editVehicleId').value;
+            const payload = {
+                year: parseInt(form.year.value),
+                make: form.make.value,
+                model: form.model.value,
+                trim: form.trim.value || null,
+                license_plate: form.license_plate.value || null,
+                ezpass_transponder: form.ezpass_transponder.value || null,
+                estimated_annual_mileage: parseInt(form.estimated_annual_mileage.value || 12000),
+                notes: form.notes.value || null
+            };
+
+            const res = await fetch(`/api/v1/vehicles/${vId}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+
+            if (res.ok) {
+                closeEditVehicleModal();
+                showToast('Vehicle updated successfully!');
+                setTimeout(() => window.location.reload(), 1000);
+            } else {
+                const err = await res.json();
+                alert(err.detail || 'Error updating vehicle');
+            }
+        }
+
+        async function deleteVehicle(vId, vehicleName) {
+            const name = vehicleName || 'this vehicle';
+            if (!confirm(`Are you sure you want to delete ${name}? All associated documents, service logs, work orders, and knowledge records for this vehicle will also be removed.`)) {
+                return;
+            }
+            const res = await fetch(`/api/v1/vehicles/${vId}`, { method: 'DELETE' });
+            if (res.ok) {
+                showToast('Vehicle deleted.');
+                setTimeout(() => window.location.href = '/dashboard', 1000);
+            } else {
+                const err = await res.json();
+                alert(err.detail || 'Failed to delete vehicle');
+            }
+        }
+
+        function deleteVehicleFromModal() {
+            const vId = document.getElementById('editVehicleId').value;
+            const year = document.getElementById('editVehicleYear').value;
+            const make = document.getElementById('editVehicleMake').value;
+            const model = document.getElementById('editVehicleModel').value;
+            closeEditVehicleModal();
+            deleteVehicle(vId, `${year} ${make} ${model}`);
+        }
+
+        /* --- Modal Operations for Editing Work Order / Appointment --- */
+        function openEditWorkOrderModal(id, shopId, summary, scheduledDate, status, quotedLabor, finalLabor, invoiceNumber, notes, completionDate) {
+            document.getElementById('editOrderId').value = id;
+            document.getElementById('editShopId').value = shopId;
+            document.getElementById('editServiceSummary').value = summary || '';
+            document.getElementById('editScheduledDate').value = scheduledDate || '';
+            document.getElementById('editStatus').value = status || 'PLANNED';
+            document.getElementById('editQuotedLabor').value = (quotedLabor !== null && quotedLabor !== undefined) ? quotedLabor : '';
+            document.getElementById('editFinalLabor').value = (finalLabor !== null && finalLabor !== undefined && finalLabor !== 'null') ? finalLabor : '';
+            document.getElementById('editInvoiceNumber').value = invoiceNumber || '';
+            document.getElementById('editMechanicNotes').value = notes || '';
+            document.getElementById('editCompletionDate').value = completionDate || '';
+            document.getElementById('editWorkOrderModal').classList.add('open');
+        }
+
+        function closeEditWorkOrderModal() {
+            document.getElementById('editWorkOrderModal').classList.remove('open');
+        }
+
+        async function submitEditWorkOrder(e) {
+            e.preventDefault();
+            const form = e.target;
+            const orderId = document.getElementById('editOrderId').value;
+            const payload = {
+                shop_id: parseInt(form.shop_id.value),
+                service_summary: form.service_summary.value,
+                scheduled_date: form.scheduled_date.value,
+                completion_date: form.completion_date.value || null,
+                status: form.status.value,
+                quoted_labor_cost: form.quoted_labor_cost.value ? parseFloat(form.quoted_labor_cost.value) : 0,
+                final_labor_cost: form.final_labor_cost.value ? parseFloat(form.final_labor_cost.value) : null,
+                invoice_number: form.invoice_number.value || null,
+                mechanic_notes: form.mechanic_notes.value || null
+            };
+
+            const res = await fetch(`/api/v1/external-services/orders/${orderId}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+
+            if (res.ok) {
+                closeEditWorkOrderModal();
+                showToast('Appointment updated successfully!');
+                setTimeout(() => window.location.reload(), 1000);
+            } else {
+                const err = await res.json();
+                alert(err.detail || 'Error updating appointment');
+            }
+        }
+
+        async function deleteWorkOrder(orderId) {
+            if (!confirm('Are you sure you want to delete this work order?')) return;
+            const res = await fetch(`/api/v1/external-services/orders/${orderId}`, { method: 'DELETE' });
+            if (res.ok) {
+                showToast('Work order deleted.');
+                setTimeout(() => window.location.reload(), 1000);
+            } else {
+                alert('Failed to delete work order');
+            }
+        }
+
+        /* --- Modal Operations for Editing Mechanic Shop --- */
+        function openEditShopModal(id, name, contact, phone, email, rate, address, specialties, notes) {
+            document.getElementById('editShopFormId').value = id;
+            document.getElementById('editShopName').value = name || '';
+            document.getElementById('editShopContact').value = contact || '';
+            document.getElementById('editShopPhone').value = phone || '';
+            document.getElementById('editShopEmail').value = email || '';
+            document.getElementById('editShopRate').value = (rate !== null && rate !== undefined) ? rate : '150.00';
+            document.getElementById('editShopAddress').value = address || '';
+            document.getElementById('editShopSpecialties').value = specialties || '';
+            document.getElementById('editShopNotes').value = notes || '';
+            document.getElementById('editShopModal').classList.add('open');
+        }
+
+        function closeEditShopModal() {
+            document.getElementById('editShopModal').classList.remove('open');
+        }
+
+        async function submitShop(e) {
+            e.preventDefault();
+            const form = e.target;
+            const payload = {
+                name: form.name.value,
+                contact_name: form.contact_name.value || null,
+                phone: form.phone.value,
+                hourly_labor_rate: form.hourly_labor_rate.value ? parseFloat(form.hourly_labor_rate.value) : 140.0,
+                address: form.address.value,
+                specialties: form.specialties.value || null
+            };
+
+            const res = await fetch('/api/v1/external-services/shops', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+
+            if (res.ok) {
+                showToast('Mechanic shop registered!');
+                setTimeout(() => window.location.reload(), 1000);
+            } else {
+                const err = await res.json();
+                alert(err.detail || 'Error registering shop');
+            }
+        }
+
+        async function submitEditShop(e) {
+            e.preventDefault();
+            const form = e.target;
+            const shopId = document.getElementById('editShopFormId').value;
+            const payload = {
+                name: form.name.value,
+                contact_name: form.contact_name.value || null,
+                phone: form.phone.value,
+                email: form.email.value || null,
+                hourly_labor_rate: form.hourly_labor_rate.value ? parseFloat(form.hourly_labor_rate.value) : 150.0,
+                address: form.address.value,
+                specialties: form.specialties.value || null,
+                notes: form.notes.value || null
+            };
+
+            const res = await fetch(`/api/v1/external-services/shops/${shopId}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+
+            if (res.ok) {
+                closeEditShopModal();
+                showToast('Shop details updated!');
+                setTimeout(() => window.location.reload(), 1000);
+            } else {
+                const err = await res.json();
+                alert(err.detail || 'Error updating shop');
+            }
+        }
+
+        async function deleteShop(shopId) {
+            if (!confirm('Are you sure you want to delete this mechanic shop?')) return;
+            const res = await fetch(`/api/v1/external-services/shops/${shopId}`, { method: 'DELETE' });
+            if (res.ok) {
+                showToast('Shop deleted.');
+                setTimeout(() => window.location.reload(), 1000);
+            } else {
+                alert('Failed to delete shop');
+            }
+        }
+
+        /* --- Standard Form Submissions --- */
+        async function submitVehicle(e) {
+            e.preventDefault();
+            const form = e.target;
+            const payload = {
+                vin: form.vin.value,
+                year: parseInt(form.year.value),
+                make: form.make.value,
+                model: form.model.value,
+                trim: form.trim.value || null,
+                license_plate: form.license_plate.value || null,
+                ezpass_transponder: form.ezpass_transponder.value || null,
+                current_mileage: parseInt(form.current_mileage.value),
+                estimated_annual_mileage: parseInt(form.estimated_annual_mileage.value || 12000),
+                purchase_date: form.purchase_date.value || null,
+                notes: form.notes.value || null
+            };
+            const res = await fetch('/api/v1/vehicles', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+            if (res.ok) {
+                const data = await res.json();
+                showToast('Vehicle added successfully!');
+                setTimeout(() => window.location.href = '/dashboard?vehicle_id=' + data.id, 1000);
+            } else {
+                const err = await res.json();
+                alert(err.detail || 'Error creating vehicle');
+            }
+        }
+
+        async function submitOdometer(e) {
+            e.preventDefault();
+            const form = e.target;
+            const vId = form.vehicle_id.value;
+            const mileage = parseInt(form.current_mileage.value);
+            const res = await fetch(`/api/v1/vehicles/${vId}/odometer`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ current_mileage: mileage })
+            });
+            if (res.ok) {
+                showToast('Odometer updated!');
+                setTimeout(() => window.location.reload(), 1000);
+            } else {
+                const err = await res.json();
+                alert(err.detail || 'Error updating odometer');
+            }
+        }
+
+        async function submitDocument(e) {
+            e.preventDefault();
+            const form = e.target;
+            const payload = {
+                vehicle_id: parseInt(form.vehicle_id.value),
+                doc_type: form.doc_type.value,
+                document_number: form.document_number.value,
+                issuer: form.issuer.value,
+                effective_date: form.effective_date.value,
+                expiration_date: form.expiration_date.value,
+                lead_alert_days: parseInt(form.lead_alert_days.value || 30),
+                notes: form.notes.value || null
+            };
+            const res = await fetch('/api/v1/documents', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+            if (res.ok) {
+                showToast('Document saved!');
+                setTimeout(() => window.location.reload(), 1000);
+            } else {
+                const err = await res.json();
+                alert(err.detail || 'Error saving document');
+            }
+        }
+
+        async function submitServiceRecord(e) {
+            e.preventDefault();
+            const form = e.target;
+            const payload = {
+                vehicle_id: parseInt(form.vehicle_id.value),
+                service_name: form.service_name.value,
+                completed_mileage: parseInt(form.completed_mileage.value),
+                completed_date: form.completed_date.value,
+                performed_by_type: form.performed_by_type.value,
+                labor_cost: parseFloat(form.labor_cost.value || 0),
+                parts_cost: parseFloat(form.parts_cost.value || 0),
+                notes: form.notes.value || null
+            };
+            const res = await fetch('/api/v1/maintenance/records', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+            if (res.ok) {
+                showToast('Service record saved!');
+                setTimeout(() => window.location.reload(), 1000);
+            } else {
+                const err = await res.json();
+                alert(err.detail || 'Error saving service record');
+            }
+        }
+
+        async function submitWorkOrder(e) {
+            e.preventDefault();
+            const form = e.target;
+            const payload = {
+                vehicle_id: parseInt(form.vehicle_id.value),
+                shop_id: parseInt(form.shop_id.value),
+                service_summary: form.service_summary.value,
+                scheduled_date: form.scheduled_date.value,
+                quoted_labor_cost: parseFloat(form.quoted_labor_cost.value || 0),
+                mechanic_notes: form.mechanic_notes.value || null
+            };
+            const res = await fetch('/api/v1/external-services/orders', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+            if (res.ok) {
+                showToast('Work order created!');
+                setTimeout(() => window.location.reload(), 1000);
+            } else {
+                const err = await res.json();
+                alert(err.detail || 'Error creating work order');
+            }
+        }
+
+        async function submitPart(e) {
+            e.preventDefault();
+            const form = e.target;
+            const wId = form.work_order_id.value ? parseInt(form.work_order_id.value) : null;
+            const payload = {
+                vehicle_id: parseInt(form.vehicle_id.value),
+                work_order_id: wId,
+                part_name: form.part_name.value,
+                oem_part_number: form.oem_part_number.value || null,
+                supplier: form.supplier.value,
+                unit_cost: parseFloat(form.unit_cost.value || 0),
+                quantity: parseInt(form.quantity.value || 1),
+                order_status: form.order_status.value,
+                tracking_number: form.tracking_number.value || null
+            };
+            const url = wId ? `/api/v1/external-services/orders/${wId}/parts` : `/api/v1/external-services/parts`;
+            const res = await fetch(url, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+            if (res.ok) {
+                showToast('Part sourcing saved!');
+                setTimeout(() => window.location.reload(), 1000);
+            } else {
+                const err = await res.json();
+                alert(err.detail || 'Error saving part');
+            }
+        }
+
+        async function submitConsumable(e) {
+            e.preventDefault();
+            const form = e.target;
+            const payload = {
+                vehicle_id: parseInt(form.vehicle_id.value),
+                category: form.category.value,
+                item_name: form.item_name.value,
+                specification: form.specification.value,
+                oem_part_number: form.oem_part_number.value || null,
+                aftermarket_alternatives: form.aftermarket_alternatives.value || null,
+                replacement_interval_summary: form.replacement_interval_summary.value || null
+            };
+            const res = await fetch('/api/v1/consumables', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+            if (res.ok) {
+                showToast('Consumable spec saved!');
+                setTimeout(() => window.location.reload(), 1000);
+            } else {
+                const err = await res.json();
+                alert(err.detail || 'Error saving consumable');
+            }
+        }
+
+        async function submitGuide(e) {
+            e.preventDefault();
+            const form = e.target;
+            const payload = {
+                vehicle_id: parseInt(form.vehicle_id.value),
+                title: form.title.value,
+                doc_category: form.doc_category.value,
+                difficulty: form.difficulty.value,
+                source_name_or_url: form.source_name_or_url.value,
+                tools_required: form.tools_required.value || null,
+                step_by_step_instructions: form.step_by_step_instructions.value,
+                early_service_community_tips: form.early_service_community_tips.value || null
+            };
+            const res = await fetch('/api/v1/reference-docs', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+            if (res.ok) {
+                showToast('Repair guide saved!');
+                setTimeout(() => window.location.reload(), 1000);
+            } else {
+                const err = await res.json();
+                alert(err.detail || 'Error saving guide');
+            }
+        }
+
+        async function submitKnowledge(e) {
+            e.preventDefault();
+            const form = e.target;
+            const payload = {
+                vehicle_id: parseInt(form.vehicle_id.value),
+                title: form.title.value,
+                category: form.category.value,
+                component_system: form.component_system.value,
+                severity: form.severity.value,
+                description: form.description.value,
+                recommended_action: form.recommended_action.value || null
+            };
+            const res = await fetch('/api/v1/knowledge', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+            if (res.ok) {
+                showToast('Knowledge entry saved!');
+                setTimeout(() => window.location.reload(), 1000);
+            } else {
+                const err = await res.json();
+                alert(err.detail || 'Error saving quirk');
+            }
+        }
+
+        async function syncDocToCalendar(docId) {
+            const res = await fetch(`/api/v1/calendar/sync/document/${docId}`, { method: 'POST' });
+            if (res.ok) {
+                showToast('Document pushed to Google Calendar!');
+            } else {
+                alert('Calendar sync failed');
+            }
+        }
+
+        async function syncOrderToCalendar(orderId) {
+            const res = await fetch(`/api/v1/calendar/sync/service-order/${orderId}`, { method: 'POST' });
+            if (res.ok) {
+                showToast('Work order appointment pushed to Google Calendar!');
+            } else {
+                alert('Calendar sync failed');
+            }
+        }
+
+        async function triggerImmediateChecks() {
+            const res = await fetch('/api/v1/notifications/check-now', { method: 'POST' });
+            if (res.ok) {
+                showToast('Background check executed!');
+            }
+        }
+
+        async function sendTestNotification() {
+            const res = await fetch('/api/v1/notifications/test', { method: 'POST' });
+            if (res.ok) {
+                showToast('Desktop notification dispatched!');
+            }
+        }
+    </script>
+</body>
+</html>

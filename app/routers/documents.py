@@ -1,0 +1,83 @@
+from app.config import get_utc_now
+from datetime import datetime, date
+from typing import List, Optional
+from fastapi import APIRouter, Depends, HTTPException, Query
+from sqlmodel import Session, select
+from app.database import get_session
+from app.models.document import (
+    VehicleDocument,
+    VehicleDocumentCreate,
+    VehicleDocumentRead,
+    VehicleDocumentUpdate,
+)
+from app.models.vehicle import Vehicle
+from app.services.document_service import DocumentService
+
+router = APIRouter(prefix="/api/v1/documents", tags=["Documents"])
+
+@router.get("", response_model=List[VehicleDocumentRead])
+def list_documents(
+    vehicle_id: Optional[int] = Query(None, description="Filter by vehicle ID"),
+    session: Session = Depends(get_session)
+):
+    stmt = select(VehicleDocument)
+    if vehicle_id:
+        stmt = stmt.where(VehicleDocument.vehicle_id == vehicle_id)
+    
+    docs = session.exec(stmt).all()
+    return [DocumentService.enrich_document_read(d) for d in docs]
+
+@router.post("", response_model=VehicleDocumentRead, status_code=201)
+def create_document(payload: VehicleDocumentCreate, session: Session = Depends(get_session)):
+    vehicle = session.get(Vehicle, payload.vehicle_id)
+    if not vehicle:
+        raise HTTPException(status_code=404, detail="Associated vehicle not found.")
+    
+    doc = VehicleDocument.model_validate(payload)
+    session.add(doc)
+    session.commit()
+    session.refresh(doc)
+    return DocumentService.enrich_document_read(doc)
+
+@router.get("/expiring", response_model=List[VehicleDocumentRead])
+def get_expiring_documents(
+    vehicle_id: Optional[int] = Query(None, description="Filter by vehicle ID"),
+    session: Session = Depends(get_session)
+):
+    return DocumentService.get_expiring_documents(session, vehicle_id=vehicle_id)
+
+@router.get("/{document_id}", response_model=VehicleDocumentRead)
+def get_document(document_id: int, session: Session = Depends(get_session)):
+    doc = session.get(VehicleDocument, document_id)
+    if not doc:
+        raise HTTPException(status_code=404, detail="Document not found.")
+    return DocumentService.enrich_document_read(doc)
+
+@router.put("/{document_id}", response_model=VehicleDocumentRead)
+def update_document(
+    document_id: int,
+    payload: VehicleDocumentUpdate,
+    session: Session = Depends(get_session)
+):
+    doc = session.get(VehicleDocument, document_id)
+    if not doc:
+        raise HTTPException(status_code=404, detail="Document not found.")
+    
+    update_data = payload.model_dump(exclude_unset=True)
+    for k, v in update_data.items():
+        setattr(doc, k, v)
+    
+    doc.updated_at = get_utc_now()
+    session.add(doc)
+    session.commit()
+    session.refresh(doc)
+    return DocumentService.enrich_document_read(doc)
+
+@router.delete("/{document_id}")
+def delete_document(document_id: int, session: Session = Depends(get_session)):
+    doc = session.get(VehicleDocument, document_id)
+    if not doc:
+        raise HTTPException(status_code=404, detail="Document not found.")
+    session.delete(doc)
+    session.commit()
+    return {"message": "Document deleted successfully."}

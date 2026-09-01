@@ -1,0 +1,25 @@
+[project]
+name = "vehicle-maintenance"
+version = "0.1.0"
+description = "Vehicle maintenance tracking, document renewals, maintenance interval forecasting, external service & parts sourcing, and calendar sync"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "fastapi>=0.115.0",
+    "uvicorn>=0.30.0",
+    "sqlmodel>=0.0.22",
+    "pydantic>=2.8.0",
+    "apscheduler>=3.10.4",
+    "qrcode>=7.4.2",
+    "jinja2>=3.1.4",
+    "httpx>=0.27.0",
+    "pytest>=8.0.0",
+]
+
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
