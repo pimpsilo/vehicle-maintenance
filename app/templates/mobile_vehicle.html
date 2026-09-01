@@ -373,19 +373,24 @@
 
     <!-- Consumables Cheat Sheet -->
     <div class="card">
-        <h2>🛢️ Consumables & Quick Specs</h2>
+        <h2>🛢️ Consumables & Part Numbers</h2>
         <div class="consumables-list">
             {% for item in consumables %}
-            <div class="consumable-item">
-                <div>
-                    <div class="item-label">{{ item.item_name }}</div>
-                    <div class="item-spec">{{ item.specification }}</div>
-                    {% if item.aftermarket_alternatives %}
-                    <div style="font-size: 0.75rem; color: #64748b;">Alt: {{ item.aftermarket_alternatives }}</div>
+            <div class="consumable-item" style="flex-direction: column; align-items: flex-start; gap: 6px; padding: 12px 0;">
+                <div style="display: flex; justify-content: space-between; width: 100%; align-items: center; flex-wrap: wrap; gap: 4px;">
+                    <div class="item-label" style="font-size: 0.95rem; color: var(--primary);">{{ item.item_name }}</div>
+                    {% if item.oem_part_number %}
+                    <div class="item-oem" title="OEM Factory Part Number">OEM: {{ item.oem_part_number }}</div>
                     {% endif %}
                 </div>
-                {% if item.oem_part_number %}
-                <div class="item-oem">{{ item.oem_part_number }}</div>
+                <div class="item-spec" style="font-size: 0.85rem; color: var(--text);"><strong>Spec:</strong> {{ item.specification }}</div>
+                {% if item.aftermarket_alternatives %}
+                <div style="font-size: 0.78rem; color: #334155; background: #f1f5f9; padding: 5px 8px; border-radius: 6px; width: 100%;">
+                    <strong style="color: #0369a1;">Cross-Ref Part #s:</strong> {{ item.aftermarket_alternatives }}
+                </div>
+                {% endif %}
+                {% if item.replacement_interval_summary %}
+                <div style="font-size: 0.75rem; color: #64748b;">⏳ <em>{{ item.replacement_interval_summary }}</em></div>
                 {% endif %}
             </div>
             {% else %}

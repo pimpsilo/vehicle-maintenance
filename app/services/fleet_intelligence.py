@@ -51,17 +51,18 @@ class FleetIntelligenceService:
             "recalls_found": len(recalls)
         }
 
-        # 1. Populate Consumables
+        # 1. Populate & Enrich Consumables
         existing_consumables = session.exec(
             select(ConsumableSpecification).where(ConsumableSpecification.vehicle_id == vehicle.id)
         ).all()
-        existing_categories = {c.category for c in existing_consumables}
+        consumable_by_category = {c.category: c for c in existing_consumables}
 
         for spec in profile.get("consumables", []):
-            if spec["category"] not in existing_categories:
+            cat = spec["category"]
+            if cat not in consumable_by_category:
                 new_c = ConsumableSpecification(
                     vehicle_id=vehicle.id,
-                    category=spec["category"],
+                    category=cat,
                     item_name=spec["item_name"],
                     specification=spec["specification"],
                     oem_part_number=spec.get("oem_part_number"),
@@ -70,6 +71,18 @@ class FleetIntelligenceService:
                 )
                 session.add(new_c)
                 counts["consumables_added"] += 1
+            else:
+                # Enrich existing consumable if missing OEM part number or aftermarket alternatives
+                existing_item = consumable_by_category[cat]
+                updated = False
+                if not existing_item.oem_part_number and spec.get("oem_part_number"):
+                    existing_item.oem_part_number = spec.get("oem_part_number")
+                    updated = True
+                if not existing_item.aftermarket_alternatives and spec.get("aftermarket_alternatives"):
+                    existing_item.aftermarket_alternatives = spec.get("aftermarket_alternatives")
+                    updated = True
+                if updated:
+                    session.add(existing_item)
 
         # 2. Populate DIY Guides & Manuals
         existing_guides = session.exec(

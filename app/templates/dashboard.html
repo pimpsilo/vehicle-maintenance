@@ -648,6 +648,74 @@
         </div>
     </div>
 
+    <!-- Edit Consumable Modal -->
+    <div id="editConsumableModal" class="modal-overlay">
+        <div class="modal">
+            <div class="modal-header">
+                <div class="modal-title">✏️ Edit Consumable Specification & Part Numbers</div>
+                <button type="button" class="modal-close" onclick="closeEditConsumableModal()">&times;</button>
+            </div>
+            <form id="editConsumableForm" onsubmit="submitEditConsumable(event)">
+                <div class="modal-body">
+                    <input type="hidden" id="editConsumableId" name="consumable_id">
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label>Category *</label>
+                            <select id="editConsumableCategory" name="category" required>
+                                <option value="ENGINE_OIL">Engine Motor Oil</option>
+                                <option value="OIL_FILTER">Oil Filter</option>
+                                <option value="SPARK_PLUGS">Spark Plugs</option>
+                                <option value="ENGINE_AIR_FILTER">Engine Air Filter</option>
+                                <option value="CABIN_AIR_FILTER">Cabin Air Filter</option>
+                                <option value="TRANSMISSION_FLUID">Transmission Fluid</option>
+                                <option value="COOLANT">Engine Coolant</option>
+                                <option value="BRAKE_FLUID">Brake Fluid</option>
+                                <option value="BRAKE_PADS">Brake Pads</option>
+                                <option value="WIPER_BLADES">Wiper Blades</option>
+                                <option value="BATTERY">Battery</option>
+                                <option value="TIRES">Tires</option>
+                                <option value="TIRE_PRESSURE">Tire Pressure Spec</option>
+                                <option value="FUEL_GRADE">Fuel Grade</option>
+                                <option value="OTHER">Other Consumable</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Item Name *</label>
+                            <input type="text" id="editConsumableName" name="item_name" required placeholder="e.g. Engine Motor Oil">
+                        </div>
+                        <div class="form-group full-width">
+                            <label>Specification & Fluid Capacity *</label>
+                            <input type="text" id="editConsumableSpec" name="specification" required placeholder="e.g. SAE 0W-20 Full Synthetic (6.4 Quarts with filter)">
+                        </div>
+                        <div class="form-group">
+                            <label>OEM Factory Part Number</label>
+                            <input type="text" id="editConsumableOem" name="oem_part_number" placeholder="e.g. 04152-YZZA1">
+                        </div>
+                        <div class="form-group">
+                            <label>Aftermarket Cross-References</label>
+                            <input type="text" id="editConsumableAlt" name="aftermarket_alternatives" placeholder="e.g. Wix 57060, Mobil 1 M1C-251A, Fram XG9972">
+                        </div>
+                        <div class="form-group full-width">
+                            <label>Replacement Interval Summary</label>
+                            <input type="text" id="editConsumableInterval" name="replacement_interval_summary" placeholder="e.g. Every 10,000 miles / 12 months">
+                        </div>
+                        <div class="form-group full-width">
+                            <label>Notes / Specific Instructions</label>
+                            <textarea id="editConsumableNotes" name="notes" rows="2" placeholder="Torque specs, crush washer part #, socket size..."></textarea>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer" style="display: flex; justify-content: space-between;">
+                    <button type="button" class="btn btn-danger" onclick="deleteConsumableFromModal()">🗑️ Delete Spec</button>
+                    <div style="display: flex; gap: 10px;">
+                        <button type="button" class="btn btn-outline" onclick="closeEditConsumableModal()">Cancel</button>
+                        <button type="submit" class="btn btn-success">Save Spec Changes</button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+
     <!-- Sidebar -->
     <div class="sidebar">
         <div class="sidebar-brand">
@@ -1576,6 +1644,7 @@
                                     <th>OEM Part #</th>
                                     <th>Aftermarket Cross-Reference</th>
                                     <th>Interval</th>
+                                    <th>Actions</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -1587,6 +1656,12 @@
                                     <td><code>{{ c.oem_part_number or 'N/A' }}</code></td>
                                     <td style="color: var(--text-muted);">{{ c.aftermarket_alternatives or 'N/A' }}</td>
                                     <td>{{ c.replacement_interval_summary or 'N/A' }}</td>
+                                    <td>
+                                        <div style="display: flex; gap: 6px;">
+                                            <button type="button" class="btn btn-outline" style="padding: 4px 8px; font-size: 0.75rem;" onclick="openEditConsumableModal({{ c.id }}, '{{ c.category.value }}', '{{ c.item_name|replace("'", "\\'") }}', '{{ c.specification|replace("'", "\\'") }}', '{{ (c.oem_part_number or "")|replace("'", "\\'") }}', '{{ (c.aftermarket_alternatives or "")|replace("'", "\\'") }}', '{{ (c.replacement_interval_summary or "")|replace("'", "\\'") }}', '{{ (c.notes or "")|replace("'", "\\'") }}')">✏️ Edit</button>
+                                            <button type="button" class="btn btn-danger" style="padding: 4px 8px; font-size: 0.75rem;" onclick="deleteConsumable({{ c.id }})">🗑️</button>
+                                        </div>
+                                    </td>
                                 </tr>
                                 {% endfor %}
                             </tbody>
@@ -2589,6 +2664,70 @@
                 const err = await res.json();
                 alert(err.detail || 'Error saving part');
             }
+        }
+
+        /* --- Consumables Modal & CRUD --- */
+        function openEditConsumableModal(id, category, name, spec, oem, alt, interval, notes) {
+            document.getElementById('editConsumableId').value = id;
+            document.getElementById('editConsumableCategory').value = category;
+            document.getElementById('editConsumableName').value = name || '';
+            document.getElementById('editConsumableSpec').value = spec || '';
+            document.getElementById('editConsumableOem').value = oem || '';
+            document.getElementById('editConsumableAlt').value = alt || '';
+            document.getElementById('editConsumableInterval').value = interval || '';
+            document.getElementById('editConsumableNotes').value = notes || '';
+            document.getElementById('editConsumableModal').classList.add('open');
+        }
+
+        function closeEditConsumableModal() {
+            document.getElementById('editConsumableModal').classList.remove('open');
+        }
+
+        async function submitEditConsumable(e) {
+            e.preventDefault();
+            const form = e.target;
+            const id = document.getElementById('editConsumableId').value;
+            const payload = {
+                category: form.category.value,
+                item_name: form.item_name.value,
+                specification: form.specification.value,
+                oem_part_number: form.oem_part_number.value || null,
+                aftermarket_alternatives: form.aftermarket_alternatives.value || null,
+                replacement_interval_summary: form.replacement_interval_summary.value || null,
+                notes: form.notes.value || null
+            };
+
+            const res = await fetch(`/api/v1/consumables/${id}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+
+            if (res.ok) {
+                closeEditConsumableModal();
+                showToast('Consumable specification updated!');
+                setTimeout(() => window.location.reload(), 1000);
+            } else {
+                const err = await res.json();
+                alert(err.detail || 'Error updating consumable');
+            }
+        }
+
+        async function deleteConsumable(id) {
+            if (!confirm('Are you sure you want to delete this consumable specification?')) return;
+            const res = await fetch(`/api/v1/consumables/${id}`, { method: 'DELETE' });
+            if (res.ok) {
+                showToast('Consumable spec deleted.');
+                setTimeout(() => window.location.reload(), 1000);
+            } else {
+                alert('Failed to delete consumable');
+            }
+        }
+
+        function deleteConsumableFromModal() {
+            const id = document.getElementById('editConsumableId').value;
+            closeEditConsumableModal();
+            deleteConsumable(id);
         }
 
         async function submitConsumable(e) {
