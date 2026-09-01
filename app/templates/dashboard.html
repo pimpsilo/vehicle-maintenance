@@ -681,6 +681,7 @@
                     {% endfor %}
                 </select>
                 {% if active_vehicle %}
+                <button type="button" class="btn btn-outline btn-sm" onclick="autoDiscoverVehicle({{ active_vehicle.id }}, '{{ active_vehicle.year }} {{ active_vehicle.make|replace("'", "\\'") }} {{ active_vehicle.model|replace("'", "\\'") }}')" title="Scan NHTSA, Forums, Reddit, and YouTube for specs, manuals, and quirks">🌐 Auto-Discover Intelligence</button>
                 <a href="/v/{{ active_vehicle.id }}" target="_blank" class="btn btn-outline btn-sm">📱 Mobile Portal</a>
                 <a href="/api/v1/vehicles/{{ active_vehicle.id }}/qr" target="_blank" class="btn btn-outline btn-sm">🔲 QR Code</a>
                 {% endif %}
@@ -738,6 +739,22 @@
                         <div class="value">{{ "{:,}".format(active_vehicle.estimated_annual_mileage) }} <span style="font-size: 1rem; font-weight: normal;">mi/yr</span></div>
                         <div class="sub">~{{ (active_vehicle.estimated_annual_mileage / 365)|round|int }} miles/day</div>
                     </div>
+                </div>
+
+                <!-- Fleet Intelligence & Community Source Status Bar -->
+                <div class="card" style="background: linear-gradient(to right, #eff6ff, #f8fafc); border-left: 4px solid var(--accent); padding: 14px 20px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; margin-bottom: 20px;">
+                    <div>
+                        <div style="font-weight: 700; font-size: 0.95rem; color: var(--primary); display: flex; align-items: center; gap: 8px;">
+                            <span>🌐 Fleet Intelligence & Community Intelligence</span>
+                        </div>
+                        <div style="display: flex; gap: 10px; flex-wrap: wrap; margin-top: 6px; font-size: 0.8rem;">
+                            <span class="badge badge-ok">✅ NHTSA VPIC & Recalls</span>
+                            <span class="badge badge-planned">🏎️ Forums (ToyotaNation/BITOG)</span>
+                            <span class="badge badge-planned">💬 Reddit (r/MechanicAdvice)</span>
+                            <span class="badge badge-planned">🎥 YouTube Master Techs</span>
+                        </div>
+                    </div>
+                    <button type="button" class="btn btn-sm" onclick="autoDiscoverVehicle({{ active_vehicle.id }}, '{{ active_vehicle.year }} {{ active_vehicle.make|replace("'", "\\'") }} {{ active_vehicle.model|replace("'", "\\'") }}')">🔄 Refresh Intelligence</button>
                 </div>
 
                 <!-- Fast Odometer Update Bar -->
@@ -818,23 +835,26 @@
                         <div class="form-grid">
                             <div class="form-group">
                                 <label>VIN (17 Characters) *</label>
-                                <input type="text" name="vin" required placeholder="e.g. 4T1BK1EB5EU123456" maxlength="17">
+                                <div style="display: flex; gap: 6px;">
+                                    <input type="text" id="newVehicleVin" name="vin" required placeholder="e.g. 4T1BK1EB5EU123456" maxlength="17" style="flex: 1;">
+                                    <button type="button" class="btn btn-sm btn-outline" onclick="quickDecodeVin()" title="Auto-decode via NHTSA VPIC">🔍 Decode</button>
+                                </div>
                             </div>
                             <div class="form-group">
                                 <label>Year *</label>
-                                <input type="number" name="year" required min="1900" max="2100" value="2014">
+                                <input type="number" id="newVehicleYear" name="year" required min="1900" max="2100" value="2014">
                             </div>
                             <div class="form-group">
                                 <label>Make *</label>
-                                <input type="text" name="make" required placeholder="e.g. Toyota" value="Toyota">
+                                <input type="text" id="newVehicleMake" name="make" required placeholder="e.g. Toyota" value="Toyota">
                             </div>
                             <div class="form-group">
                                 <label>Model *</label>
-                                <input type="text" name="model" required placeholder="e.g. Avalon" value="Avalon">
+                                <input type="text" id="newVehicleModel" name="model" required placeholder="e.g. Avalon" value="Avalon">
                             </div>
                             <div class="form-group">
                                 <label>Trim / Engine</label>
-                                <input type="text" name="trim" placeholder="e.g. XLE Touring 3.5L V6">
+                                <input type="text" id="newVehicleTrim" name="trim" placeholder="e.g. XLE Touring 3.5L V6">
                             </div>
                             <div class="form-group">
                                 <label>License Plate</label>
@@ -858,7 +878,7 @@
                             </div>
                             <div class="form-group full-width">
                                 <label>Notes</label>
-                                <textarea name="notes" rows="2" placeholder="Vehicle condition, packages, options..."></textarea>
+                                <textarea id="newVehicleNotes" name="notes" rows="2" placeholder="Vehicle condition, packages, options..."></textarea>
                             </div>
                         </div>
                         <button type="submit" class="btn btn-success">+ Save Vehicle</button>
@@ -901,6 +921,7 @@
                                     <td>{{ "{:,}".format(v.estimated_annual_mileage) }} mi/yr</td>
                                     <td>
                                         <div style="display: flex; gap: 6px;">
+                                            <button type="button" class="btn btn-sm btn-outline" style="color: var(--accent); border-color: #bfdbfe;" onclick="autoDiscoverVehicle({{ v.id }}, '{{ v.year }} {{ v.make|replace("'", "\\'") }} {{ v.model|replace("'", "\\'") }}')" title="Run Multi-Source Fleet Intelligence">🌐 Discover</button>
                                             <button type="button" class="btn btn-sm btn-outline" onclick="openEditVehicleModal({{ v.id }}, {{ v.year }}, '{{ v.make|replace("'", "\\'") }}', '{{ v.model|replace("'", "\\'") }}', '{{ (v.trim or '')|replace("'", "\\'") }}', '{{ (v.license_plate or '')|replace("'", "\\'") }}', '{{ (v.ezpass_transponder or '')|replace("'", "\\'") }}', {{ v.estimated_annual_mileage }}, '{{ (v.notes or '')|replace("'", "\\'") }}')">✏️ Edit</button>
                                             <a href="/v/{{ v.id }}" target="_blank" class="btn btn-sm btn-outline">Portal</a>
                                             <a href="/api/v1/vehicles/{{ v.id }}/qr" target="_blank" class="btn btn-sm btn-outline">QR</a>
@@ -1856,6 +1877,66 @@
             const model = document.getElementById('editVehicleModel').value;
             closeEditVehicleModal();
             deleteVehicle(vId, `${year} ${make} ${model}`);
+        }
+
+        async function quickDecodeVin() {
+            const vinInput = document.getElementById('newVehicleVin');
+            const vin = (vinInput.value || '').trim().toUpperCase();
+            if (!vin || vin.length !== 17) {
+                alert('Please enter a valid 17-character VIN first.');
+                return;
+            }
+            showToast('Querying NHTSA VPIC Decoder API...');
+            try {
+                const res = await fetch(`/api/v1/vehicles/decode-vin/${vin}`);
+                if (res.ok) {
+                    const data = await res.json();
+                    if (data.valid && data.year && data.make && data.model) {
+                        document.getElementById('newVehicleYear').value = data.year;
+                        document.getElementById('newVehicleMake').value = data.make;
+                        document.getElementById('newVehicleModel').value = data.model;
+                        if (data.trim || data.engine_summary) {
+                            document.getElementById('newVehicleTrim').value = [data.trim, data.engine_summary].filter(Boolean).join(' ');
+                        }
+                        if (data.plant_country) {
+                            const notesEl = document.getElementById('newVehicleNotes');
+                            notesEl.value = `Decoded via NHTSA VPIC. Built in ${data.plant_country}. Engine: ${data.engine_summary || 'Standard'}. Drive: ${data.drive_type || 'N/A'}`;
+                        }
+                        showToast(`Decoded: ${data.year} ${data.make} ${data.model}!`);
+                    } else {
+                        alert('NHTSA could not decode full details for this VIN. Please enter year, make, and model manually.');
+                    }
+                } else {
+                    alert('Error connecting to NHTSA VPIC Decoder.');
+                }
+            } catch (err) {
+                alert('Network error while decoding VIN: ' + err.message);
+            }
+        }
+
+        async function autoDiscoverVehicle(vId, vName) {
+            const name = vName || 'this vehicle';
+            showToast(`🌐 Scanning NHTSA, Forums, Reddit, & YouTube for ${name}...`);
+            try {
+                const res = await fetch(`/api/v1/vehicles/${vId}/auto-discover`, { method: 'POST' });
+                if (res.ok) {
+                    const data = await res.json();
+                    const counts = data.counts || {};
+                    let summary = `✅ Intelligence Discovery Completed for ${data.vehicle_name}!\n\n` +
+                        `• Consumables & Fluids added: ${counts.consumables_added || 0}\n` +
+                        `• DIY Guides & Manuals added: ${counts.guides_added || 0}\n` +
+                        `• Community Quirks & Tips added: ${counts.quirks_added || 0}\n` +
+                        `• Open NHTSA Safety Recalls: ${counts.recalls_found || 0}\n\n` +
+                        `Community Sources Scanned: ToyotaNation, Reddit r/MechanicAdvice, YouTube Master Techs.`;
+                    alert(summary);
+                    window.location.reload();
+                } else {
+                    const err = await res.json();
+                    alert(err.detail || 'Auto-discovery failed.');
+                }
+            } catch (err) {
+                alert('Error during auto-discovery: ' + err.message);
+            }
         }
 
         /* --- Work Order / Appointment Modal & CRUD --- */

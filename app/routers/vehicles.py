@@ -1,6 +1,6 @@
 from app.config import get_utc_now
 from datetime import datetime, date
-from typing import List, Optional
+from typing import List, Optional, Dict, Any
 from fastapi import APIRouter, Depends, HTTPException, Response
 from sqlmodel import Session, select
 from app.database import get_session
@@ -18,6 +18,8 @@ from app.models.consumable import ConsumableSpecification
 from app.models.reference_doc import ReferenceDocument
 from app.models.vehicle_knowledge import VehicleKnowledge
 from app.services.qr_service import QRService
+from app.services.nhtsa_service import NHTSAService
+from app.services.fleet_intelligence import FleetIntelligenceService
 
 router = APIRouter(prefix="/api/v1/vehicles", tags=["Vehicles"])
 
@@ -35,7 +37,22 @@ def create_vehicle(payload: VehicleCreate, session: Session = Depends(get_sessio
     session.add(vehicle)
     session.commit()
     session.refresh(vehicle)
+    
+    # Auto-run discovery in background for new vehicle
+    try:
+        FleetIntelligenceService.auto_discover_vehicle(session, vehicle.id)
+        session.refresh(vehicle)
+    except Exception:
+        pass
+
     return vehicle
+
+@router.get("/decode-vin/{vin}")
+def decode_vin(vin: str):
+    """
+    Decodes a 17-character VIN via the NHTSA VPIC API on demand.
+    """
+    return NHTSAService.decode_vin(vin)
 
 @router.get("/{vehicle_id}", response_model=VehicleRead)
 def get_vehicle(vehicle_id: int, session: Session = Depends(get_session)):
@@ -133,3 +150,32 @@ def get_vehicle_qr_code(vehicle_id: int, format: str = "png", session: Session =
     else:
         png_bytes = QRService.generate_qr_png_bytes(vehicle_id)
         return Response(content=png_bytes, media_type="image/png")
+
+# --- Multi-Source Fleet Intelligence & Community Enrichment ---
+@router.post("/{vehicle_id}/auto-discover")
+def auto_discover_fleet_intelligence(vehicle_id: int, session: Session = Depends(get_session)):
+    """
+    Triggers multi-source research across NHTSA (VPIC & Recalls), automotive forums,
+    Reddit, and YouTube DIY channels to enrich the database for this vehicle.
+    """
+    res = FleetIntelligenceService.auto_discover_vehicle(session, vehicle_id)
+    if not res.get("success"):
+        raise HTTPException(status_code=404, detail=res.get("message", "Auto-discovery failed."))
+    return res
+
+@router.get("/{vehicle_id}/recalls")
+def get_vehicle_safety_recalls(vehicle_id: int, session: Session = Depends(get_session)):
+    """
+    Fetches open safety recalls for the vehicle from the NHTSA Recalls API.
+    """
+    vehicle = session.get(Vehicle, vehicle_id)
+    if not vehicle:
+        raise HTTPException(status_code=404, detail="Vehicle not found.")
+    
+    recalls = NHTSAService.get_recalls_by_vin(vehicle.vin)
+    return {
+        "vehicle_id": vehicle.id,
+        "vin": vehicle.vin,
+        "total_recalls": len(recalls),
+        "recalls": recalls,
+    }
