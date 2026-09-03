@@ -33,7 +33,7 @@ class Settings(BaseModel):
     maintenance_due_soon_days: int = 30
 
     # Google Calendar Settings
-    google_calendar_id: str = "primary"
+    google_calendar_id: str = os.getenv("GOOGLE_CALENDAR_ID", "primary")
     google_client_id: str = os.getenv("GOOGLE_CLIENT_ID", "mock_client_id")
     google_client_secret: str = os.getenv("GOOGLE_CLIENT_SECRET", "mock_client_secret")
     google_token_file: str = os.getenv("GOOGLE_TOKEN_FILE", str(DATA_DIR / "gcal_token.json"))
