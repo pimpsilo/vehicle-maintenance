@@ -95,5 +95,11 @@ docker compose up -d --build
 ```bash
 pytest tests -v
 ```
-All 39 automated tests verify CRUD operations, dual-threshold math, document expiration statuses, parts cost aggregation, QR code generation, mobile template rendering, calendar sync payloads, dynamic environment configuration, `/healthz` probes, and HTTP Basic Auth enforcement.
+All 41 automated tests verify CRUD operations, dual-threshold math, document expiration statuses, parts cost aggregation, QR code generation, mobile template rendering, calendar sync payloads, dynamic environment configuration, `/healthz` probes, and HTTP Basic Auth enforcement.
+
+---
+
+## 📖 Architecture & Master Blueprint
+
+For a comprehensive breakdown of the entire domain model, mobile workflows, Google Calendar REST API integration, and QNAP Tailscale deployment architecture, see the **[Master Blueprint](docs/MASTER_BLUEPRINT.md)**.
 
