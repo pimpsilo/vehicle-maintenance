@@ -4,9 +4,34 @@ from pathlib import Path
 from pydantic import BaseModel
 
 BASE_DIR = Path(__file__).resolve().parent.parent
-DATA_DIR_PATH = os.getenv("DATA_DIR", str(BASE_DIR / "data"))
-DATA_DIR = Path(DATA_DIR_PATH)
-DATA_DIR.mkdir(parents=True, exist_ok=True)
+
+def _load_env_file():
+    env_file = BASE_DIR / ".env"
+    if env_file.exists():
+        with open(env_file, "r", encoding="utf-8") as f:
+            for line in f:
+                line = line.strip()
+                if not line or line.startswith("#") or "=" not in line:
+                    continue
+                k, v = line.split("=", 1)
+                k = k.strip()
+                v = v.strip().strip("'\"")
+                if k and k not in os.environ:
+                    os.environ[k] = v
+
+_load_env_file()
+
+raw_data_dir = os.getenv("DATA_DIR")
+if not raw_data_dir or (raw_data_dir.startswith("/app") and not Path("/.dockerenv").exists()):
+    DATA_DIR = BASE_DIR / "data"
+else:
+    DATA_DIR = Path(raw_data_dir)
+
+try:
+    DATA_DIR.mkdir(parents=True, exist_ok=True)
+except Exception:
+    DATA_DIR = BASE_DIR / "data"
+    DATA_DIR.mkdir(parents=True, exist_ok=True)
 
 def get_utc_now() -> datetime:
     return datetime.now(timezone.utc)
@@ -34,8 +59,8 @@ class Settings(BaseModel):
 
     # Google Calendar Settings
     google_calendar_id: str = os.getenv("GOOGLE_CALENDAR_ID", "primary")
-    google_client_id: str = os.getenv("GOOGLE_CLIENT_ID", "mock_client_id")
-    google_client_secret: str = os.getenv("GOOGLE_CLIENT_SECRET", "mock_client_secret")
+    google_client_id: str = os.getenv("GOOGLE_CLIENT_ID", "")
+    google_client_secret: str = os.getenv("GOOGLE_CLIENT_SECRET", "")
     google_token_file: str = os.getenv("GOOGLE_TOKEN_FILE", str(DATA_DIR / "gcal_token.json"))
 
 settings = Settings()
