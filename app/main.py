@@ -35,6 +35,35 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+import base64
+import secrets
+from fastapi import Request, Response, status
+
+# HTTP Basic Auth middleware for optional defense-in-depth protection
+@app.middleware("http")
+async def basic_auth_middleware(request: Request, call_next):
+    if not settings.enable_auth or request.url.path == "/healthz":
+        return await call_next(request)
+
+    auth_header = request.headers.get("Authorization")
+    if auth_header and auth_header.startswith("Basic "):
+        try:
+            encoded_credentials = auth_header.split(" ", 1)[1]
+            decoded = base64.b64decode(encoded_credentials).decode("utf-8")
+            username, _, password = decoded.partition(":")
+            correct_user = secrets.compare_digest(username, settings.auth_username)
+            correct_pass = secrets.compare_digest(password, settings.auth_password)
+            if correct_user and correct_pass:
+                return await call_next(request)
+        except Exception:
+            pass
+
+    return Response(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        content="Unauthorized - Vehicle Tracker Access Required",
+        headers={"WWW-Authenticate": 'Basic realm="Vehicle Tracker"'},
+    )
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -42,6 +71,12 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+@app.get("/healthz", tags=["Health"])
+def health_check():
+    """Lightweight health check probe for Docker / QNAP Container Station."""
+    return {"status": "healthy", "version": settings.version}
+
 
 # Include Dashboard & API routers
 app.include_router(dashboard.router)

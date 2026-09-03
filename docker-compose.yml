@@ -1,0 +1,21 @@
+services:
+  vehicle-tracker:
+    build: .
+    image: vehicle-maintenance:latest
+    container_name: vehicle-tracker
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    environment:
+      - DATA_DIR=/app/data
+      - BASE_PUBLIC_URL=${BASE_PUBLIC_URL:-http://localhost:8000}
+      - ENABLE_AUTH=${ENABLE_AUTH:-false}
+      - AUTH_USERNAME=${AUTH_USERNAME:-admin}
+      - AUTH_PASSWORD=${AUTH_PASSWORD:-changeme}
+      - NOTIFICATION_COOLDOWN_HOURS=${NOTIFICATION_COOLDOWN_HOURS:-24}
+      - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID:-}
+      - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET:-}
+    volumes:
+      # Persistent storage path on QNAP storage pool (adjust if your storage pool is different)
+      - /share/Container/vehicle_maintenance/data:/app/data
+    stop_grace_period: 30s

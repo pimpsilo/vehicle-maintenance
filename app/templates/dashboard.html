@@ -716,6 +716,77 @@
         </div>
     </div>
 
+    <!-- Vehicle QR Code & Glovebox Sticker Modal -->
+    <div id="qrStickerModal" class="modal-overlay">
+        <div class="modal-content" style="max-width: 580px;">
+            <div class="modal-header">
+                <div class="modal-title" id="qrModalTitle">🔲 Vehicle QR Code & Glovebox Sticker</div>
+                <button type="button" class="modal-close" onclick="closeQrStickerModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <p style="color: var(--text-muted); font-size: 0.88rem; margin-bottom: 16px;">
+                    Scan this QR code from your smartphone to access the mobile portal for instant odometer logging, consumable specs lookup, and maintenance history.
+                </p>
+
+                <!-- Network Endpoint Switcher -->
+                <div style="background: #f8fafc; border: 1px solid var(--border); border-radius: 8px; padding: 14px; margin-bottom: 18px;">
+                    <div style="font-weight: 600; font-size: 0.85rem; margin-bottom: 8px; color: var(--text);">
+                        Select Target Access Endpoint:
+                    </div>
+                    <div style="display: flex; flex-direction: column; gap: 8px; font-size: 0.86rem;">
+                        <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                            <input type="radio" name="qrEndpointPreset" value="http://nas6e810d.tail8ba0ff.ts.net:8000" checked onchange="updateQrPreview()">
+                            <span>🌟 <strong>Tailscale MagicDNS</strong> (Recommended - 24/7 Cellular & PC)</span>
+                        </label>
+                        <div style="margin-left: 24px; font-size: 0.78rem; color: var(--text-muted); font-family: monospace;">
+                            http://nas6e810d.tail8ba0ff.ts.net:8000
+                        </div>
+
+                        <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                            <input type="radio" name="qrEndpointPreset" value="http://100.91.20.86:8000" onchange="updateQrPreview()">
+                            <span>🔒 <strong>Tailscale IP</strong> (Direct Zero-DNS Fallback)</span>
+                        </label>
+                        <div style="margin-left: 24px; font-size: 0.78rem; color: var(--text-muted); font-family: monospace;">
+                            http://100.91.20.86:8000
+                        </div>
+
+                        <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                            <input type="radio" name="qrEndpointPreset" value="http://192.168.1.198:8000" onchange="updateQrPreview()">
+                            <span>🏠 <strong>Local LAN</strong> (Home Wi-Fi & Exit Node)</span>
+                        </label>
+                        <div style="margin-left: 24px; font-size: 0.78rem; color: var(--text-muted); font-family: monospace;">
+                            http://192.168.1.198:8000
+                        </div>
+
+                        <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                            <input type="radio" name="qrEndpointPreset" value="custom" onchange="updateQrPreview()">
+                            <span>⚙️ <strong>Custom Base URL</strong></span>
+                        </label>
+                        <input type="text" id="qrCustomBaseUrl" style="margin-left: 24px; display: none; padding: 6px 10px; font-size: 0.82rem; border: 1px solid var(--border); border-radius: 6px;" placeholder="http://my-nas-url:8000" oninput="updateQrPreview()">
+                    </div>
+                </div>
+
+                <!-- Live QR Preview & Sticker Card -->
+                <div id="qrPrintArea" style="text-align: center; background: white; border: 2px dashed #cbd5e1; border-radius: 12px; padding: 20px; margin-bottom: 16px;">
+                    <div id="qrStickerVehicleHeader" style="font-weight: 700; font-size: 1.05rem; margin-bottom: 4px; color: #0f172a;">Vehicle Portal</div>
+                    <div style="font-size: 0.78rem; color: #64748b; margin-bottom: 12px;">Door Jamb / Glovebox Quick-Scan Portal</div>
+                    <div style="display: inline-block; background: white; padding: 10px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.06);">
+                        <img id="qrPreviewImage" src="" alt="Vehicle QR Code" style="width: 200px; height: 200px; display: block;">
+                    </div>
+                    <div id="qrDestinationUrl" style="margin-top: 12px; font-size: 0.78rem; color: #2563eb; font-family: monospace; word-break: break-all;"></div>
+                </div>
+            </div>
+            <div class="modal-footer" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
+                <a id="qrTestLink" href="#" target="_blank" class="btn btn-outline btn-sm">🔗 Test Destination Link</a>
+                <div style="display: flex; gap: 8px;">
+                    <button type="button" class="btn btn-outline btn-sm" onclick="downloadQr('png')">📥 PNG</button>
+                    <button type="button" class="btn btn-outline btn-sm" onclick="downloadQr('svg')">📥 SVG</button>
+                    <button type="button" class="btn btn-primary btn-sm" onclick="printQrSticker()">🖨️ Print Sticker</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Sidebar -->
     <div class="sidebar">
         <div class="sidebar-brand">
@@ -755,7 +826,7 @@
                 {% if active_vehicle %}
                 <button type="button" class="btn btn-outline btn-sm" onclick="autoDiscoverVehicle({{ active_vehicle.id }}, '{{ active_vehicle.year }} {{ active_vehicle.make|replace("'", "\\'") }} {{ active_vehicle.model|replace("'", "\\'") }}')" title="Scan NHTSA, Forums, Reddit, and YouTube for specs, manuals, and quirks">🌐 Auto-Discover Intelligence</button>
                 <a href="/v/{{ active_vehicle.id }}" target="_blank" class="btn btn-outline btn-sm">📱 Mobile Portal</a>
-                <a href="/api/v1/vehicles/{{ active_vehicle.id }}/qr" target="_blank" class="btn btn-outline btn-sm">🔲 QR Code</a>
+                <button type="button" class="btn btn-outline btn-sm" onclick="openQrStickerModal({{ active_vehicle.id }}, '{{ active_vehicle.year }} {{ active_vehicle.make|replace("'", "\\'") }} {{ active_vehicle.model|replace("'", "\\'") }}')">🔲 QR Sticker</button>
                 {% endif %}
             </div>
         </div>
@@ -1040,8 +1111,7 @@
                                         <div style="display: flex; gap: 6px;">
                                             <button type="button" class="btn btn-sm btn-outline" style="color: var(--accent); border-color: #bfdbfe;" onclick="autoDiscoverVehicle({{ v.id }}, '{{ v.year }} {{ v.make|replace("'", "\\'") }} {{ v.model|replace("'", "\\'") }}')" title="Run Multi-Source Fleet Intelligence">🌐 Discover</button>
                                             <button type="button" class="btn btn-sm btn-outline" onclick="openEditVehicleModal({{ v.id }}, {{ v.year }}, '{{ v.make|replace("'", "\\'") }}', '{{ v.model|replace("'", "\\'") }}', '{{ (v.trim or '')|replace("'", "\\'") }}', '{{ (v.license_plate or '')|replace("'", "\\'") }}', '{{ (v.ezpass_transponder or '')|replace("'", "\\'") }}', {{ v.estimated_annual_mileage }}, '{{ (v.notes or '')|replace("'", "\\'") }}')">✏️ Edit</button>
-                                            <a href="/v/{{ v.id }}" target="_blank" class="btn btn-sm btn-outline">Portal</a>
-                                            <a href="/api/v1/vehicles/{{ v.id }}/qr" target="_blank" class="btn btn-sm btn-outline">QR</a>
+                                            <button type="button" class="btn btn-sm btn-outline" onclick="openQrStickerModal({{ v.id }}, '{{ v.year }} {{ v.make|replace("'", "\\'") }} {{ v.model|replace("'", "\\'") }}')">QR</button>
                                             <button type="button" class="btn btn-sm btn-danger" onclick="deleteVehicle({{ v.id }}, '{{ v.year }} {{ v.make|replace("'", "\\'") }} {{ v.model|replace("'", "\\'") }}')" title="Delete Vehicle">🗑️</button>
                                         </div>
                                     </td>
@@ -2899,6 +2969,105 @@
             if (res.ok) {
                 showToast('Desktop notification dispatched!');
             }
+        }
+
+        // --- QR Code & Glovebox Sticker Modal Functions ---
+        let currentQrVehicleId = null;
+        let currentQrVehicleName = '';
+
+        function openQrStickerModal(vehicleId, vehicleName) {
+            currentQrVehicleId = vehicleId;
+            currentQrVehicleName = vehicleName || 'Vehicle Quick Access';
+            document.getElementById('qrModalTitle').textContent = `🔲 QR Sticker: ${currentQrVehicleName}`;
+            document.getElementById('qrStickerVehicleHeader').textContent = currentQrVehicleName;
+            document.getElementById('qrStickerModal').classList.add('open');
+            updateQrPreview();
+        }
+
+        function closeQrStickerModal() {
+            document.getElementById('qrStickerModal').classList.remove('open');
+        }
+
+        function getSelectedBaseUrl() {
+            const selectedRadio = document.querySelector('input[name="qrEndpointPreset"]:checked');
+            if (!selectedRadio) return 'http://nas6e810d.tail8ba0ff.ts.net:8000';
+            if (selectedRadio.value === 'custom') {
+                return (document.getElementById('qrCustomBaseUrl').value || 'http://localhost:8000').trim();
+            }
+            return selectedRadio.value;
+        }
+
+        function updateQrPreview() {
+            if (!currentQrVehicleId) return;
+            const customInput = document.getElementById('qrCustomBaseUrl');
+            const selectedRadio = document.querySelector('input[name="qrEndpointPreset"]:checked');
+            if (selectedRadio && selectedRadio.value === 'custom') {
+                customInput.style.display = 'block';
+            } else {
+                customInput.style.display = 'none';
+            }
+
+            const baseUrl = getSelectedBaseUrl();
+            const cleanBase = baseUrl.replace(/\/+$/, '');
+            const qrUrl = `/api/v1/vehicles/${currentQrVehicleId}/qr?format=png&base_url=${encodeURIComponent(cleanBase)}`;
+            const fullPortalUrl = `${cleanBase}/v/${currentQrVehicleId}`;
+
+            document.getElementById('qrPreviewImage').src = qrUrl;
+            document.getElementById('qrDestinationUrl').textContent = fullPortalUrl;
+            document.getElementById('qrTestLink').href = fullPortalUrl;
+        }
+
+        function downloadQr(format) {
+            if (!currentQrVehicleId) return;
+            const baseUrl = getSelectedBaseUrl().replace(/\/+$/, '');
+            const url = `/api/v1/vehicles/${currentQrVehicleId}/qr?format=${format}&base_url=${encodeURIComponent(baseUrl)}`;
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `vehicle_${currentQrVehicleId}_qr.${format}`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+        }
+
+        function printQrSticker() {
+            const printContent = document.getElementById('qrPrintArea').innerHTML;
+            const printWindow = window.open('', '', 'width=450,height=550');
+            printWindow.document.write(`
+                <!DOCTYPE html>
+                <html>
+                    <head>
+                        <title>Vehicle QR Sticker - ${currentQrVehicleName}</title>
+                        <style>
+                            body {
+                                font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+                                display: flex;
+                                align-items: center;
+                                justify-content: center;
+                                height: 100vh;
+                                margin: 0;
+                                background: white;
+                            }
+                            .sticker {
+                                border: 2.5px solid #000;
+                                border-radius: 12px;
+                                padding: 18px;
+                                text-align: center;
+                                width: 260px;
+                            }
+                            img { width: 180px; height: 180px; display: block; margin: 0 auto; }
+                            .title { font-weight: 700; font-size: 16px; margin-bottom: 4px; }
+                            .sub { font-size: 11px; color: #555; margin-bottom: 8px; }
+                            .url { font-size: 10px; font-family: monospace; word-break: break-all; margin-top: 8px; color: #333; }
+                        </style>
+                    </head>
+                    <body onload="window.print();window.close();">
+                        <div class="sticker">
+                            ${printContent}
+                        </div>
+                    </body>
+                </html>
+            `);
+            printWindow.document.close();
         }
 
         // Restore active tab from URL hash or sessionStorage on load

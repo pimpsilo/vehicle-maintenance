@@ -27,7 +27,7 @@ vehicle_maintenance.db*
 token.json
 client_secret*.json
 
-# OS Artifacts
+# OS & Tool Artifacts
 .DS_Store
 .DS_Store?
 ._*
@@ -35,3 +35,5 @@ client_secret*.json
 .Trashes
 ehthumbs.db
 Thumbs.db
+.antigravity/
+

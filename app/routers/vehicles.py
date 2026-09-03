@@ -159,17 +159,23 @@ def update_odometer(vehicle_id: int, payload: OdometerUpdate, session: Session =
     return _enrich_vehicle_read(vehicle)
 
 @router.get("/{vehicle_id}/qr")
-def get_vehicle_qr_code(vehicle_id: int, format: str = "png", session: Session = Depends(get_session)):
+def get_vehicle_qr_code(
+    vehicle_id: int,
+    format: str = "png",
+    base_url: Optional[str] = None,
+    session: Session = Depends(get_session),
+):
     vehicle = session.get(Vehicle, vehicle_id)
     if not vehicle:
         raise HTTPException(status_code=404, detail="Vehicle not found.")
     
     if format.lower() == "svg":
-        svg_content = QRService.generate_qr_svg(vehicle_id)
+        svg_content = QRService.generate_qr_svg(vehicle_id, base_url=base_url)
         return Response(content=svg_content, media_type="image/svg+xml")
     else:
-        png_bytes = QRService.generate_qr_png_bytes(vehicle_id)
+        png_bytes = QRService.generate_qr_png_bytes(vehicle_id, base_url=base_url)
         return Response(content=png_bytes, media_type="image/png")
+
 
 # --- Fleet Photos Endpoints ---
 @router.post("/{vehicle_id}/photo", response_model=VehicleRead)

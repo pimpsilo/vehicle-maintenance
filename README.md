@@ -74,9 +74,26 @@ uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
 
 ---
 
+## 🐳 Docker & QNAP NAS Deployment (24/7 Tailscale Access)
+
+The application is fully containerized and optimized for 24/7 self-hosting on **QNAP NAS (QTS / QuTS hero)** via **Container Station**:
+
+- **Pre-built Compose**: Includes [`docker-compose.yml`](docker-compose.yml) and production [`Dockerfile`](Dockerfile) running under non-privileged `appuser`.
+- **Zero-Trust Tailscale Integration**: Leverages QNAP's host Tailscale instance and exit node for secure mobile (iOS / Android) and PC remote access with zero open router ports.
+- **Dynamic Mobile QR Codes**: Physical vehicle glovebox QR stickers dynamically resolve to your Tailscale MagicDNS or Tailscale IP.
+- **Complete Setup Guide**: See [QNAP Deployment Guide](QNAP_DEPLOYMENT_GUIDE.md) for step-by-step instructions on storage pool setup, data migration, and iOS home-screen PWA configuration.
+
+```bash
+# Deploy with Docker Compose
+docker compose up -d --build
+```
+
+---
+
 ## 🧪 Running the Test Suite
 
 ```bash
 pytest tests -v
 ```
-All 17 automated tests verify CRUD operations, dual-threshold math, document expiration statuses, parts cost aggregation, QR code generation, mobile template rendering, and calendar sync payloads.
+All 39 automated tests verify CRUD operations, dual-threshold math, document expiration statuses, parts cost aggregation, QR code generation, mobile template rendering, calendar sync payloads, dynamic environment configuration, `/healthz` probes, and HTTP Basic Auth enforcement.
+
