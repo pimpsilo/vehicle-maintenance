@@ -13,10 +13,10 @@ REMOTE_DIR="/share/Container/vehicle_maintenance"
 
 echo "🚗 Updating Vehicle Maintenance Tracker on QNAP ($QNAP_USER@$QNAP_HOST)..."
 
-# 1. Stream updated code from Mac to QNAP
-# IMPORTANT: --exclude='data' ensures your active QNAP database is never overwritten by local files
+# 1. Stream updated code from Mac to QNAP (suppressing macOS xattrs and preserving QNAP data/)
 echo "📦 Streaming updated application files..."
-tar --exclude='.git' \
+COPYFILE_DISABLE=1 tar --no-xattrs \
+    --exclude='.git' \
     --exclude='.venv' \
     --exclude='__pycache__' \
     --exclude='.pytest_cache' \
@@ -24,8 +24,14 @@ tar --exclude='.git' \
     -czf - . | ssh "$QNAP_USER@$QNAP_HOST" "tar -xzf - -C $REMOTE_DIR"
 
 # 2. Rebuild and restart the container on QNAP
+# We invoke a login shell and export Container Station binary paths so sudo finds docker
 echo "🐳 Rebuilding and restarting container..."
-ssh -t "$QNAP_USER@$QNAP_HOST" "cd $REMOTE_DIR && sudo docker compose up -d --build"
+ssh -t "$QNAP_USER@$QNAP_HOST" "/bin/sh -l -c '
+    export PATH=\$PATH:/share/CACHEDEV1_DATA/.qpkg/container-station/bin:/share/CACHEDEV2_DATA/.qpkg/container-station/bin:/usr/local/bin:/usr/local/sbin
+    DOCKER_BIN=\$(which docker 2>/dev/null || echo \"docker\")
+    echo \"Using Docker: \$DOCKER_BIN\"
+    cd $REMOTE_DIR && sudo \"\$DOCKER_BIN\" compose up -d --build
+'"
 
 # 3. Verify health probe
 echo "🩺 Verifying health check probe..."
