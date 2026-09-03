@@ -78,3 +78,25 @@ def test_calendar_sync_api_endpoints(client: TestClient, sample_vehicle: Vehicle
     events_res = client.get(f"/api/v1/calendar/events?vehicle_id={sample_vehicle.id}")
     assert events_res.status_code == 200
     assert len(events_res.json()) >= 1
+
+def test_calendar_status_and_bulk_sync(client: TestClient, sample_vehicle: Vehicle):
+    # Test status endpoint
+    status_res = client.get("/api/v1/calendar/status")
+    assert status_res.status_code == 200
+    status_data = status_res.json()
+    assert "connected" in status_data
+    assert "calendar_id" in status_data
+
+    # Test OAuth URL endpoint
+    oauth_res = client.get("/api/v1/calendar/oauth/url")
+    assert oauth_res.status_code == 200
+    oauth_data = oauth_res.json()
+    assert "auth_url" in oauth_data
+    assert "accounts.google.com" in oauth_data["auth_url"]
+
+    # Test Bulk Sync endpoint
+    bulk_res = client.post("/api/v1/calendar/sync/all")
+    assert bulk_res.status_code == 200
+    bulk_data = bulk_res.json()
+    assert "total_synced" in bulk_data
+

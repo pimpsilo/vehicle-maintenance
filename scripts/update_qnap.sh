@@ -23,7 +23,13 @@ COPYFILE_DISABLE=1 tar --no-xattrs \
     --exclude='data' \
     -czf - . | ssh "$QNAP_USER@$QNAP_HOST" "tar -xzf - -C $REMOTE_DIR"
 
-# 2. Rebuild and restart the container on QNAP
+# 2. If Google Calendar token exists on Mac, sync it safely into data/ without touching the database
+if [ -f "data/gcal_token.json" ]; then
+    echo "🔑 Syncing Google Calendar OAuth token to QNAP..."
+    scp -q data/gcal_token.json "$QNAP_USER@$QNAP_HOST:$REMOTE_DIR/data/gcal_token.json"
+fi
+
+# 3. Rebuild and restart the container on QNAP
 # We invoke a login shell and export Container Station binary paths so sudo finds docker
 echo "🐳 Rebuilding and restarting container..."
 ssh -t "$QNAP_USER@$QNAP_HOST" "/bin/sh -l -c '

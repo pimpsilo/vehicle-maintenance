@@ -9,6 +9,7 @@ from app.models.maintenance import ServiceStatus
 from app.services.document_service import DocumentService
 from app.services.interval_engine import MaintenanceIntervalEngine
 from app.services.notification_srv import NotificationService
+from app.services.gcal_service import GoogleCalendarService
 
 logger = logging.getLogger(__name__)
 
@@ -60,6 +61,12 @@ def run_scheduled_checks():
                         vehicle_id=vehicle.id,
                         entity_id=f.service_definition_id,
                     )
+
+        # 3. Google Calendar Synchronization
+        try:
+            GoogleCalendarService.sync_all_upcoming(session)
+        except Exception as e:
+            logger.error(f"Error during scheduled Google Calendar sync: {e}")
 
 def start_scheduler():
     if not scheduler.running:

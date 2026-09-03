@@ -25,6 +25,8 @@ vehicle_maintenance.db*
 .env
 .env.local
 token.json
+*token*.json
+*gcal_token*.json
 client_secret*.json
 
 # OS & Tool Artifacts

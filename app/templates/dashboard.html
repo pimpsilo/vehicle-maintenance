@@ -1916,15 +1916,26 @@
             <!-- TAB 9: CALENDAR & ALERTS -->
             <div id="pane-sync" class="tab-pane">
                 <div class="card">
-                    <div class="card-header">
-                        <div class="card-title">📅 Google Calendar Synchronization & Reminders</div>
+                    <div class="card-header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
+                        <div class="card-title">📅 Google Calendar Integration & Reminders</div>
+                        <span id="gcalStatusBadge" class="badge badge-planned">Checking status...</span>
                     </div>
                     <p style="font-size: 0.9rem; color: var(--text-muted); margin-bottom: 16px;">
-                        Pushes confirmed service appointments and document renewal deadlines to Google Calendar with custom automated reminder overrides (30d/14d/2d email & popups).
+                        Pushes confirmed service appointments, registration renewals, and insurance expiration deadlines directly to your Google Calendar with custom reminder overrides (30-day, 14-day, and 2-day email & popup alerts).
                     </p>
-                    <div style="display: flex; gap: 12px; flex-wrap: wrap;">
-                        <button class="btn" onclick="triggerImmediateChecks()">🔔 Run Scheduled Notification Checks Now</button>
-                        <button class="btn btn-outline" onclick="sendTestNotification()">📣 Send Test Desktop Notification</button>
+                    <div style="display: flex; gap: 12px; flex-wrap: wrap; align-items: center; margin-bottom: 12px;">
+                        <button class="btn btn-primary" onclick="syncAllToCalendar()">⚡ Sync All Events to Google Calendar Now</button>
+                        <button class="btn btn-outline" id="gcalConnectBtn" onclick="connectGoogleCalendar()">🔗 Connect Google Account</button>
+                        <button class="btn btn-outline" onclick="triggerImmediateChecks()">🔔 Run Scheduled Notification Checks</button>
+                        <button class="btn btn-outline" onclick="sendTestNotification()">📣 Send Test Notification</button>
+                    </div>
+                    <div id="gcalManualAuthBox" style="display: none; background: var(--bg-surface); padding: 14px; border-radius: 8px; border: 1px dashed var(--border-color); margin-top: 12px;">
+                        <div style="font-size: 0.85rem; font-weight: 600; margin-bottom: 6px;">Manual OAuth Authorization Code:</div>
+                        <p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 8px;">If your browser did not automatically redirect, authorize via the popup window, copy the authorization code from the Google screen or URL, and paste it below:</p>
+                        <div style="display: flex; gap: 8px;">
+                            <input type="text" id="gcalAuthCodeInput" class="form-control" placeholder="4/0A..." style="font-size: 0.85rem;">
+                            <button class="btn btn-sm btn-primary" onclick="submitGcalCode()">Submit Code</button>
+                        </div>
                     </div>
                 </div>
 
@@ -2010,6 +2021,10 @@
                 }
                 sessionStorage.setItem('activeTab', tabName);
             } catch (_) {}
+
+            if (tabName === 'sync') {
+                checkCalendarStatus();
+            }
         }
 
         function onVehicleChange() {
@@ -2968,6 +2983,87 @@
             const res = await fetch('/api/v1/notifications/test', { method: 'POST' });
             if (res.ok) {
                 showToast('Desktop notification dispatched!');
+            }
+        }
+
+        async function checkCalendarStatus() {
+            try {
+                const res = await fetch('/api/v1/calendar/status');
+                if (res.ok) {
+                    const data = await res.json();
+                    const badge = document.getElementById('gcalStatusBadge');
+                    const connectBtn = document.getElementById('gcalConnectBtn');
+                    const manualBox = document.getElementById('gcalManualAuthBox');
+                    if (!badge) return;
+
+                    if (data.connected) {
+                        badge.className = 'badge badge-delivered';
+                        badge.textContent = `🟢 Connected (${data.calendar_id})`;
+                        if (connectBtn) connectBtn.textContent = '🔄 Re-authorize Account';
+                        if (manualBox) manualBox.style.display = 'none';
+                    } else {
+                        badge.className = 'badge badge-overdue';
+                        badge.textContent = '🟠 Not Authorized';
+                        if (connectBtn) connectBtn.textContent = '🔗 Connect Google Account';
+                    }
+                }
+            } catch (e) {
+                console.error('Error checking calendar status:', e);
+            }
+        }
+
+        async function connectGoogleCalendar() {
+            try {
+                const res = await fetch('/api/v1/calendar/oauth/url');
+                if (res.ok) {
+                    const data = await res.json();
+                    window.open(data.auth_url, '_blank');
+                    const manualBox = document.getElementById('gcalManualAuthBox');
+                    if (manualBox) manualBox.style.display = 'block';
+                }
+            } catch (e) {
+                alert('Failed to get authorization URL: ' + e);
+            }
+        }
+
+        async function submitGcalCode() {
+            const codeInput = document.getElementById('gcalAuthCodeInput');
+            const code = codeInput ? codeInput.value.trim() : '';
+            if (!code) {
+                alert('Please paste the authorization code');
+                return;
+            }
+            try {
+                const res = await fetch('/api/v1/calendar/oauth/code', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ code })
+                });
+                const data = await res.json();
+                if (res.ok) {
+                    showToast('Google Calendar connected successfully!');
+                    checkCalendarStatus();
+                } else {
+                    alert('Authorization failed: ' + (data.detail || 'Invalid code'));
+                }
+            } catch (e) {
+                alert('Error submitting code: ' + e);
+            }
+        }
+
+        async function syncAllToCalendar() {
+            showToast('Syncing all events with Google Calendar...');
+            try {
+                const res = await fetch('/api/v1/calendar/sync/all', { method: 'POST' });
+                if (res.ok) {
+                    const data = await res.json();
+                    showToast(`Synced ${data.total_synced} events to Google Calendar!`);
+                    setTimeout(() => location.reload(), 1500);
+                } else {
+                    alert('Sync failed. Make sure Google Calendar is authorized.');
+                }
+            } catch (e) {
+                alert('Error syncing calendar: ' + e);
             }
         }
 
