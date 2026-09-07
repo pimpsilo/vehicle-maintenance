@@ -1,4 +1,4 @@
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta, timezone
 from typing import List, Optional
 from sqlmodel import Session, select
 from app.models.vehicle import Vehicle
@@ -9,6 +9,7 @@ from app.models.maintenance import (
     ServiceStatus,
 )
 from app.config import settings
+from app.services.usage_service import UsageService
 
 class MaintenanceIntervalEngine:
     @staticmethod
@@ -20,6 +21,7 @@ class MaintenanceIntervalEngine:
         """
         Evaluates all active ServiceDefinitions against the vehicle's current mileage
         and past ServiceRecords to produce a maintenance forecast for each service.
+        Uses observed daily rate from OdometerEntry history if sufficient data exists.
         """
         if current_date is None:
             current_date = date.today()
@@ -31,7 +33,29 @@ class MaintenanceIntervalEngine:
         service_defs = session.exec(select(ServiceDefinition)).all()
         forecasts = []
 
-        daily_mileage_rate = max(1.0, vehicle.estimated_annual_mileage / 365.25)
+        current_dt = datetime.combine(current_date, datetime.min.time(), tzinfo=timezone.utc)
+        observed_rate = UsageService.get_observed_daily_rate(
+            session=session,
+            vehicle_id=vehicle_id,
+            window_days=settings.usage_observation_window_days,
+            as_of=current_dt,
+        )
+
+        estimated_daily_rate = max(1.0, vehicle.estimated_annual_mileage / 365.25)
+        if observed_rate is not None and observed_rate > 0.1:
+            daily_mileage_rate = observed_rate
+            accrual_rate_source = "observed"
+        else:
+            daily_mileage_rate = estimated_daily_rate
+            accrual_rate_source = "estimated"
+
+        rate_delta_pct = None
+        if vehicle.estimated_annual_mileage > 0:
+            observed_annual = daily_mileage_rate * 365.25
+            rate_delta_pct = round(
+                ((observed_annual - vehicle.estimated_annual_mileage) / vehicle.estimated_annual_mileage) * 100.0,
+                1,
+            )
 
         for sdef in service_defs:
             # Query the latest service record for this service definition and vehicle
@@ -78,6 +102,19 @@ class MaintenanceIntervalEngine:
                 status = ServiceStatus.OK
                 action = f"OK: Service next due at {next_due_mileage:,} miles (~{projected_due_date.strftime('%b %d, %Y')})."
 
+            approaching_faster = False
+            if (
+                accrual_rate_source == "observed"
+                and rate_delta_pct is not None
+                and rate_delta_pct >= settings.maintenance_rate_surge_pct
+                and status != ServiceStatus.OVERDUE
+            ):
+                approaching_faster = True
+                calendar_days_left = max(0, days_remaining)
+                mileage_days_left = max(0, projected_days_by_mileage)
+                days_sooner = max(0, calendar_days_left - mileage_days_left)
+                action += f" ⚠️ Driving pace is ~{rate_delta_pct:.0f}% above plan; due ~{days_sooner} days sooner than the calendar interval."
+
             forecast = MaintenanceForecast(
                 service_definition_id=sdef.id,
                 service_name=sdef.service_name,
@@ -92,6 +129,10 @@ class MaintenanceIntervalEngine:
                 days_remaining=days_remaining,
                 status=status,
                 action_summary=action,
+                accrual_rate_source=accrual_rate_source,
+                accrual_rate_mpd=round(daily_mileage_rate, 2),
+                rate_delta_pct=rate_delta_pct,
+                approaching_faster=approaching_faster,
             )
             forecasts.append(forecast)
 

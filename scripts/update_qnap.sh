@@ -8,7 +8,7 @@
 set -e
 
 QNAP_USER="${QNAP_USER:-admin1}"
-QNAP_HOST="${QNAP_HOST:-100.91.20.86}"
+QNAP_HOST="${QNAP_HOST:-nas6e810d.tail8ba0ff.ts.net}"
 REMOTE_DIR="/share/Container/vehicle_maintenance"
 
 echo "🚗 Updating Vehicle Maintenance Tracker on QNAP ($QNAP_USER@$QNAP_HOST)..."

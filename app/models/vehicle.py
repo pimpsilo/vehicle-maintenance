@@ -33,6 +33,7 @@ class Vehicle(VehicleBase, table=True):
     consumables: List["ConsumableSpecification"] = Relationship(back_populates="vehicle", cascade_delete=True)
     reference_docs: List["ReferenceDocument"] = Relationship(back_populates="vehicle", cascade_delete=True)
     knowledge_records: List["VehicleKnowledge"] = Relationship(back_populates="vehicle", cascade_delete=True)
+    odometer_entries: List["OdometerEntry"] = Relationship(back_populates="vehicle", cascade_delete=True)
 
 class VehicleCreate(VehicleBase):
     pass
@@ -59,3 +60,38 @@ class VehicleUpdate(SQLModel):
 class OdometerUpdate(SQLModel):
     current_mileage: int = Field(ge=0)
     recorded_date: Optional[date] = None
+
+class OdometerEntryBase(SQLModel):
+    vehicle_id: int = Field(foreign_key="vehicles.id", index=True)
+    mileage: int = Field(ge=0)
+    recorded_at: datetime = Field(default_factory=get_utc_now)
+
+class OdometerEntry(OdometerEntryBase, table=True):
+    __tablename__ = "odometer_entries"
+
+    id: Optional[int] = Field(default=None, primary_key=True)
+
+    # Relationship
+    vehicle: Optional["Vehicle"] = Relationship(back_populates="odometer_entries")
+
+class OdometerEntryRead(OdometerEntryBase):
+    id: int
+
+class MonthMileagePoint(SQLModel):
+    month: str  # YYYY-MM
+    miles: float
+
+class VehicleUsageStats(SQLModel):
+    vehicle_id: int
+    insufficient_data: bool = True
+    total_miles: Optional[int] = None
+    observation_span_days: Optional[float] = None
+    average_miles_per_day: Optional[float] = None
+    miles_per_week: Optional[float] = None
+    miles_per_month: Optional[float] = None
+    miles_per_year: Optional[float] = None
+    last_30_days_miles: Optional[float] = None
+    last_90_days_miles: Optional[float] = None
+    last_365_days_miles: Optional[float] = None
+    monthly_series: List[MonthMileagePoint] = []
+

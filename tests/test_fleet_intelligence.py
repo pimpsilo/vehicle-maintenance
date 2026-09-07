@@ -132,3 +132,57 @@ def test_palisade_and_cascada_curated_fleet_intelligence(client: TestClient):
     assert "41-125" in (c_items["SPARK_PLUGS"]["oem_part_number"] or "")
     assert "Dex-Cool" in c_items["COOLANT"]["item_name"]
     assert "Convertible Top Hydraulic Fluid" in c_items["OTHER"]["item_name"]
+
+def test_focused_topic_search_api(client: TestClient):
+    # 1. Create a test vehicle
+    veh_res = client.post(
+        "/api/v1/vehicles",
+        json={
+            "vin": "4T1BK1EB5EU888888",
+            "year": 2015,
+            "make": "Toyota",
+            "model": "Avalon",
+            "trim": "XLE",
+            "current_mileage": 110000,
+        }
+    )
+    assert veh_res.status_code == 201
+    v_id = veh_res.json()["id"]
+
+    # 2. Run focused search for 'exhaust'
+    res_ex = client.post(
+        f"/api/v1/vehicles/{v_id}/focused-search",
+        json={"topic": "exhaust"}
+    )
+    assert res_ex.status_code == 200
+    data_ex = res_ex.json()
+    assert data_ex["success"] is True
+    assert data_ex["topic"] == "exhaust"
+    assert data_ex["component_system"] == "EXHAUST"
+    assert data_ex["entries_count"] >= 1
+    assert any("Exhaust" in e["title"] for e in data_ex["entries"])
+
+    # 3. Run focused search for 'paint behavior'
+    res_paint = client.post(
+        f"/api/v1/vehicles/{v_id}/focused-search",
+        json={"topic": "paint behavior"}
+    )
+    assert res_paint.status_code == 200
+    data_paint = res_paint.json()
+    assert data_paint["success"] is True
+    assert data_paint["component_system"] == "BODY_INTERIOR"
+    assert data_paint["entries_count"] >= 1
+
+    # 4. Verify entries exist in SQLite Knowledge table
+    kb_res = client.get(f"/api/v1/knowledge?vehicle_id={v_id}")
+    assert kb_res.status_code == 200
+    titles = [k["title"] for k in kb_res.json()]
+    assert any("Exhaust" in t for t in titles)
+    assert any("Paint" in t for t in titles)
+
+    # 5. Empty topic validation
+    empty_res = client.post(
+        f"/api/v1/vehicles/{v_id}/focused-search",
+        json={"topic": "   "}
+    )
+    assert empty_res.status_code == 400

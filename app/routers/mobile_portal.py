@@ -5,7 +5,8 @@ from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 from sqlmodel import Session, select
 from app.database import get_session
-from app.models.vehicle import Vehicle, OdometerUpdate, VehicleRead
+from app.config import get_utc_now
+from app.models.vehicle import Vehicle, OdometerUpdate, VehicleRead, OdometerEntry
 from app.models.consumable import ConsumableSpecification
 from app.models.document import VehicleDocument
 from app.models.maintenance import ServiceRecord
@@ -89,15 +90,33 @@ def mobile_update_odometer(
     if not vehicle:
         raise HTTPException(status_code=404, detail="Vehicle not found.")
 
-    if payload.current_mileage < vehicle.current_mileage:
-        raise HTTPException(
-            status_code=400,
-            detail=f"New odometer reading ({payload.current_mileage}) cannot be lower than current reading ({vehicle.current_mileage})."
-        )
+    today_utc = get_utc_now().date()
+    is_backdated = payload.recorded_date is not None and payload.recorded_date < today_utc
 
-    vehicle.current_mileage = payload.current_mileage
-    vehicle.updated_at = datetime.now(timezone.utc)
-    session.add(vehicle)
+    if is_backdated:
+        if payload.current_mileage > vehicle.current_mileage:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Backdated odometer reading ({payload.current_mileage:,} mi) cannot be greater than current vehicle mileage ({vehicle.current_mileage:,} mi)."
+            )
+        recorded_dt = datetime.combine(payload.recorded_date, datetime.min.time(), tzinfo=timezone.utc)
+    else:
+        if payload.current_mileage < vehicle.current_mileage:
+            raise HTTPException(
+                status_code=400,
+                detail=f"New odometer reading ({payload.current_mileage}) cannot be lower than current reading ({vehicle.current_mileage})."
+            )
+        recorded_dt = get_utc_now()
+        vehicle.current_mileage = payload.current_mileage
+        vehicle.updated_at = recorded_dt
+        session.add(vehicle)
+
+    entry = OdometerEntry(
+        vehicle_id=vehicle.id,
+        mileage=payload.current_mileage,
+        recorded_at=recorded_dt,
+    )
+    session.add(entry)
     session.commit()
     session.refresh(vehicle)
     return vehicle

@@ -1,6 +1,7 @@
 from app.config import get_utc_now
-from datetime import datetime, date
+from datetime import datetime, date, timezone
 from typing import List, Optional, Dict, Any
+from pydantic import BaseModel
 from fastapi import APIRouter, Depends, HTTPException, Response, UploadFile, File
 from sqlmodel import Session, select
 from app.database import get_session
@@ -10,6 +11,9 @@ from app.models.vehicle import (
     VehicleRead,
     VehicleUpdate,
     OdometerUpdate,
+    OdometerEntry,
+    OdometerEntryRead,
+    VehicleUsageStats,
 )
 from app.models.document import VehicleDocument
 from app.models.maintenance import ServiceRecord
@@ -20,6 +24,7 @@ from app.models.vehicle_knowledge import VehicleKnowledge
 from app.services.qr_service import QRService
 from app.services.nhtsa_service import NHTSAService
 from app.services.fleet_intelligence import FleetIntelligenceService
+from app.services.usage_service import UsageService
 
 router = APIRouter(prefix="/api/v1/vehicles", tags=["Vehicles"])
 
@@ -57,6 +62,15 @@ def create_vehicle(payload: VehicleCreate, session: Session = Depends(get_sessio
     session.add(vehicle)
     session.commit()
     session.refresh(vehicle)
+
+    if vehicle.current_mileage > 0:
+        init_entry = OdometerEntry(
+            vehicle_id=vehicle.id,
+            mileage=vehicle.current_mileage,
+            recorded_at=get_utc_now(),
+        )
+        session.add(init_entry)
+        session.commit()
     
     # Auto-run discovery in background for new vehicle
     try:
@@ -135,6 +149,10 @@ def delete_vehicle(vehicle_id: int, session: Session = Depends(get_session)):
     for k in knowledge:
         session.delete(k)
 
+    entries = session.exec(select(OdometerEntry).where(OdometerEntry.vehicle_id == vehicle_id)).all()
+    for e in entries:
+        session.delete(e)
+
     session.delete(vehicle)
     session.commit()
     return {"message": f"Vehicle {vehicle.year} {vehicle.make} {vehicle.model} (ID: {vehicle_id}) deleted successfully."}
@@ -145,18 +163,56 @@ def update_odometer(vehicle_id: int, payload: OdometerUpdate, session: Session =
     if not vehicle:
         raise HTTPException(status_code=404, detail="Vehicle not found.")
     
-    if payload.current_mileage < vehicle.current_mileage:
-        raise HTTPException(
-            status_code=400,
-            detail=f"New odometer reading ({payload.current_mileage}) cannot be lower than current reading ({vehicle.current_mileage})."
-        )
-    
-    vehicle.current_mileage = payload.current_mileage
-    vehicle.updated_at = get_utc_now()
-    session.add(vehicle)
+    today_utc = get_utc_now().date()
+    is_backdated = payload.recorded_date is not None and payload.recorded_date < today_utc
+
+    if is_backdated:
+        if payload.current_mileage > vehicle.current_mileage:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Backdated odometer reading ({payload.current_mileage:,} mi) cannot be greater than current vehicle mileage ({vehicle.current_mileage:,} mi)."
+            )
+        recorded_dt = datetime.combine(payload.recorded_date, datetime.min.time(), tzinfo=timezone.utc)
+        # Backdated readings do NOT modify vehicle.current_mileage
+    else:
+        if payload.current_mileage < vehicle.current_mileage:
+            raise HTTPException(
+                status_code=400,
+                detail=f"New odometer reading ({payload.current_mileage}) cannot be lower than current reading ({vehicle.current_mileage})."
+            )
+        recorded_dt = get_utc_now()
+        vehicle.current_mileage = payload.current_mileage
+        vehicle.updated_at = recorded_dt
+        session.add(vehicle)
+
+    entry = OdometerEntry(
+        vehicle_id=vehicle.id,
+        mileage=payload.current_mileage,
+        recorded_at=recorded_dt,
+    )
+    session.add(entry)
     session.commit()
     session.refresh(vehicle)
     return _enrich_vehicle_read(vehicle)
+
+@router.get("/{vehicle_id}/odometer/history", response_model=List[OdometerEntryRead])
+def get_odometer_history(vehicle_id: int, session: Session = Depends(get_session)):
+    vehicle = session.get(Vehicle, vehicle_id)
+    if not vehicle:
+        raise HTTPException(status_code=404, detail="Vehicle not found.")
+    stmt = (
+        select(OdometerEntry)
+        .where(OdometerEntry.vehicle_id == vehicle_id)
+        .order_by(OdometerEntry.recorded_at.desc(), OdometerEntry.id.desc())
+    )
+    return session.exec(stmt).all()
+
+@router.get("/{vehicle_id}/usage", response_model=VehicleUsageStats)
+def get_vehicle_usage(vehicle_id: int, session: Session = Depends(get_session)):
+    vehicle = session.get(Vehicle, vehicle_id)
+    if not vehicle:
+        raise HTTPException(status_code=404, detail="Vehicle not found.")
+    return UsageService.calculate_usage_stats(session, vehicle_id)
 
 @router.get("/{vehicle_id}/qr")
 def get_vehicle_qr_code(
@@ -259,3 +315,20 @@ def get_vehicle_safety_recalls(vehicle_id: int, session: Session = Depends(get_s
         "total_recalls": len(recalls),
         "recalls": recalls,
     }
+
+class FocusedSearchPayload(BaseModel):
+    topic: str
+
+@router.post("/{vehicle_id}/focused-search")
+def run_focused_topic_search(
+    vehicle_id: int,
+    payload: FocusedSearchPayload,
+    session: Session = Depends(get_session)
+):
+    res = FleetIntelligenceService.run_focused_topic_search(session, vehicle_id, payload.topic)
+    if not res.get("success"):
+        raise HTTPException(
+            status_code=400 if "empty" in res.get("message", "") else 404,
+            detail=res.get("message", "Focused search failed.")
+        )
+    return res

@@ -108,3 +108,7 @@ class MaintenanceForecast(SQLModel):
     days_remaining: int
     status: ServiceStatus
     action_summary: str
+    accrual_rate_source: str = "estimated"
+    accrual_rate_mpd: float = 0.0
+    rate_delta_pct: Optional[float] = None
+    approaching_faster: bool = False

@@ -57,6 +57,10 @@ class Settings(BaseModel):
     maintenance_due_soon_miles: int = 500
     maintenance_due_soon_days: int = 30
 
+    # Odometer Usage & Rate Surge Forecasting Settings
+    usage_observation_window_days: int = int(os.getenv("USAGE_OBSERVATION_WINDOW_DAYS", "90"))
+    maintenance_rate_surge_pct: float = float(os.getenv("MAINTENANCE_RATE_SURGE_PCT", "25.0"))
+
     # Google Calendar Settings
     google_calendar_id: str = os.getenv("GOOGLE_CALENDAR_ID", "primary")
     google_client_id: str = os.getenv("GOOGLE_CLIENT_ID", "")

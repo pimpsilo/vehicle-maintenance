@@ -781,9 +781,43 @@
                 <div style="display: flex; gap: 8px;">
                     <button type="button" class="btn btn-outline btn-sm" onclick="downloadQr('png')">📥 PNG</button>
                     <button type="button" class="btn btn-outline btn-sm" onclick="downloadQr('svg')">📥 SVG</button>
-                    <button type="button" class="btn btn-primary btn-sm" onclick="printQrSticker()">🖨️ Print Sticker</button>
-                </div>
+    <!-- Focused Topic Search Modal -->
+    <div id="focusedSearchModal" class="modal-overlay">
+        <div class="modal" style="max-width: 580px;">
+            <div class="modal-header">
+                <div class="modal-title">🎯 Focused Intelligence Topic Search</div>
+                <button type="button" class="modal-close" onclick="closeFocusedSearchModal()">&times;</button>
             </div>
+            <form id="modalFocusedSearchForm" onsubmit="submitModalFocusedSearch(event)">
+                <div class="modal-body">
+                    <input type="hidden" id="focusedSearchVehicleId" value="{{ active_vehicle.id if active_vehicle else 1 }}">
+                    <p id="focusedSearchVehicleName" style="font-size: 0.9rem; color: var(--text-muted); margin-bottom: 14px; font-weight: 500;">
+                        Targeted research for {{ active_vehicle.year }} {{ active_vehicle.make }} {{ active_vehicle.model if active_vehicle else '' }}
+                    </p>
+                    <div class="form-group">
+                        <label>Research Topic or Specific Component *</label>
+                        <input type="text" id="focusedSearchInput" class="form-control" placeholder="e.g. exhaust, brake maintenance, paint behavior, bodywork" required>
+                    </div>
+                    <div style="margin-top: 10px; margin-bottom: 12px;">
+                        <label style="font-size: 0.78rem; font-weight: 600; color: var(--text-muted); display: block; margin-bottom: 6px;">Sample Topics:</label>
+                        <div style="display: flex; flex-wrap: wrap; gap: 6px;">
+                            <button type="button" class="btn btn-outline btn-sm" style="font-size: 0.75rem; padding: 2px 8px;" onclick="document.getElementById('focusedSearchInput').value='Exhaust';">💨 Exhaust</button>
+                            <button type="button" class="btn btn-outline btn-sm" style="font-size: 0.75rem; padding: 2px 8px;" onclick="document.getElementById('focusedSearchInput').value='Brake Maintenance';">🛑 Brake Maintenance</button>
+                            <button type="button" class="btn btn-outline btn-sm" style="font-size: 0.75rem; padding: 2px 8px;" onclick="document.getElementById('focusedSearchInput').value='Paint Behavior';">🎨 Paint Behavior</button>
+                            <button type="button" class="btn btn-outline btn-sm" style="font-size: 0.75rem; padding: 2px 8px;" onclick="document.getElementById('focusedSearchInput').value='Bodywork';">🚙 Bodywork</button>
+                            <button type="button" class="btn btn-outline btn-sm" style="font-size: 0.75rem; padding: 2px 8px;" onclick="document.getElementById('focusedSearchInput').value='Suspension';">⚙️ Suspension</button>
+                            <button type="button" class="btn btn-outline btn-sm" style="font-size: 0.75rem; padding: 2px 8px;" onclick="document.getElementById('focusedSearchInput').value='Transmission Fluid';">🔄 Transmission</button>
+                        </div>
+                    </div>
+                    <div id="focusedSearchLoading" style="display: none; padding: 12px; background: #eff6ff; border-radius: 8px; border: 1px solid #bfdbfe; font-size: 0.85rem; color: #1e40af; margin-top: 10px;">
+                        ⏳ Querying NHTSA defect complaints, safety recalls, and technical community archives...
+                    </div>
+                </div>
+                <div class="modal-footer" style="display: flex; justify-content: flex-end; gap: 10px;">
+                    <button type="button" class="btn btn-outline" onclick="closeFocusedSearchModal()">Cancel</button>
+                    <button type="submit" id="modalFocusedSearchBtn" class="btn btn-primary">Search & Save to KB</button>
+                </div>
+            </form>
         </div>
     </div>
 
@@ -813,10 +847,14 @@
     <div class="main-wrapper">
         <!-- Top Bar -->
         <div class="topbar">
-            <div class="topbar-title" id="pageTitle">Overview & Quick Entry</div>
+            <div style="display: flex; align-items: center; gap: 14px;">
+                <a href="/dashboard" class="btn btn-outline btn-sm" style="font-weight: 700; color: var(--primary);" title="Return to All Vehicles Fleet Landing Page">🚗 Fleet Overview</a>
+                <div class="topbar-title" id="pageTitle">Overview & Quick Entry</div>
+            </div>
             <div class="vehicle-selector-group">
                 <label for="activeVehicleSelect">Active Vehicle:</label>
                 <select id="activeVehicleSelect" class="select-input" onchange="onVehicleChange()">
+                    <option value="">← Fleet Overview (All Vehicles)</option>
                     {% for v in vehicles %}
                     <option value="{{ v.id }}" {% if active_vehicle and v.id == active_vehicle.id %}selected{% endif %}>
                         {{ v.year }} {{ v.make }} {{ v.model }} ({{ "{:,}".format(v.current_mileage) }} mi)
@@ -824,7 +862,8 @@
                     {% endfor %}
                 </select>
                 {% if active_vehicle %}
-                <button type="button" class="btn btn-outline btn-sm" onclick="autoDiscoverVehicle({{ active_vehicle.id }}, '{{ active_vehicle.year }} {{ active_vehicle.make|replace("'", "\\'") }} {{ active_vehicle.model|replace("'", "\\'") }}')" title="Scan NHTSA, Forums, Reddit, and YouTube for specs, manuals, and quirks">🌐 Auto-Discover Intelligence</button>
+                <button type="button" class="btn btn-primary btn-sm" onclick="openFocusedSearchModal({{ active_vehicle.id }}, '{{ active_vehicle.year }} {{ active_vehicle.make|replace("'", "\\'") }} {{ active_vehicle.model|replace("'", "\\'") }}')" title="Targeted search for specific topics (exhaust, brakes, paint behavior, bodywork...)">🎯 Focused Topic Search</button>
+                <button type="button" class="btn btn-outline btn-sm" onclick="autoDiscoverVehicle({{ active_vehicle.id }}, '{{ active_vehicle.year }} {{ active_vehicle.make|replace("'", "\\'") }} {{ active_vehicle.model|replace("'", "\\'") }}')" title="Scan NHTSA, Forums, Reddit, and YouTube for specs, manuals, and quirks">🌐 Auto-Discover</button>
                 <a href="/v/{{ active_vehicle.id }}" target="_blank" class="btn btn-outline btn-sm">📱 Mobile Portal</a>
                 <button type="button" class="btn btn-outline btn-sm" onclick="openQrStickerModal({{ active_vehicle.id }}, '{{ active_vehicle.year }} {{ active_vehicle.make|replace("'", "\\'") }} {{ active_vehicle.model|replace("'", "\\'") }}')">🔲 QR Sticker</button>
                 {% endif %}
@@ -951,6 +990,91 @@
                         </div>
                         <button type="submit" class="btn btn-success">Update Odometer</button>
                     </form>
+                </div>
+
+                <!-- Usage & Driving Pace Analytics Section -->
+                <div class="card" id="usageAnalyticsCard">
+                    <div class="card-header" style="display: flex; justify-content: space-between; align-items: center;">
+                        <div class="card-title">📊 Driving Usage & Pace Analytics</div>
+                        {% if usage_stats and not usage_stats.insufficient_data %}
+                        <span class="badge badge-ok">Observed History Active ({{ usage_stats.observation_span_days }} days)</span>
+                        {% else %}
+                        <span class="badge badge-planned">Baseline Estimate</span>
+                        {% endif %}
+                    </div>
+
+                    {% if usage_stats and not usage_stats.insufficient_data %}
+                    <div class="stats-grid" style="margin-bottom: 20px;">
+                        <div class="stat-card" style="padding: 14px 18px;">
+                            <div class="label">Daily Average Pace</div>
+                            <div class="value" style="font-size: 1.5rem; color: var(--primary);">{{ usage_stats.average_miles_per_day }} <span style="font-size: 0.9rem; font-weight: normal;">mi/day</span></div>
+                            <div class="sub">~{{ usage_stats.miles_per_week }} mi/week</div>
+                        </div>
+                        <div class="stat-card" style="padding: 14px 18px;">
+                            <div class="label">Monthly Rate</div>
+                            <div class="value" style="font-size: 1.5rem; color: var(--accent);">{{ "{:,}".format(usage_stats.miles_per_month|round|int) }} <span style="font-size: 0.9rem; font-weight: normal;">mi/mo</span></div>
+                            <div class="sub">Trailing 30d: {{ "{:,}".format(usage_stats.last_30_days_miles|round|int) }} mi</div>
+                        </div>
+                        <div class="stat-card" style="padding: 14px 18px;">
+                            <div class="label">Observed Annual Pace</div>
+                            <div class="value" style="font-size: 1.5rem; color: #0f766e;">{{ "{:,}".format(usage_stats.miles_per_year|round|int) }} <span style="font-size: 0.9rem; font-weight: normal;">mi/yr</span></div>
+                            <div class="sub">Planned: {{ "{:,}".format(active_vehicle.estimated_annual_mileage) }} mi/yr</div>
+                        </div>
+                        <div class="stat-card" style="padding: 14px 18px;">
+                            <div class="label">Trailing Windows</div>
+                            <div class="value" style="font-size: 1.25rem; margin-top: 4px;">{{ "{:,}".format(usage_stats.last_90_days_miles|round|int) }} <span style="font-size: 0.85rem; font-weight: normal;">mi (90d)</span></div>
+                            <div class="sub">365d: {{ "{:,}".format(usage_stats.last_365_days_miles|round|int) }} mi • Total: {{ "{:,}".format(usage_stats.total_miles) }} mi</div>
+                        </div>
+                    </div>
+
+                    {% if usage_stats.monthly_series and usage_stats.monthly_series|length > 0 %}
+                    <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 16px;">
+                        <div style="font-weight: 600; font-size: 0.85rem; color: #475569; margin-bottom: 12px; display: flex; justify-content: space-between;">
+                            <span>📈 Monthly Miles Driven (Calendar Months)</span>
+                            <span style="font-size: 0.75rem; color: #94a3b8;">Dependency-free SVG rendering</span>
+                        </div>
+                        {% set max_miles = namespace(val=10.0) %}
+                        {% for pt in usage_stats.monthly_series %}
+                            {% if pt.miles > max_miles.val %}{% set max_miles.val = pt.miles %}{% endif %}
+                        {% endfor %}
+                        {% set num_bars = usage_stats.monthly_series|length %}
+                        {% set svg_width = 800 %}
+                        {% set svg_height = 140 %}
+                        {% set bar_spacing = svg_width / num_bars %}
+                        {% set bar_width = [bar_spacing * 0.65, 50]|min %}
+                        <svg viewBox="0 0 {{ svg_width }} {{ svg_height }}" width="100%" height="140" style="overflow: visible;">
+                            <defs>
+                                <linearGradient id="barGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+                                    <stop offset="0%" stop-color="#3b82f6" />
+                                    <stop offset="100%" stop-color="#1d4ed8" />
+                                </linearGradient>
+                            </defs>
+                            <line x1="0" y1="{{ svg_height - 25 }}" x2="{{ svg_width }}" y2="{{ svg_height - 25 }}" stroke="#cbd5e1" stroke-width="1" />
+                            {% for pt in usage_stats.monthly_series %}
+                                {% set x = loop.index0 * bar_spacing + (bar_spacing - bar_width) / 2 %}
+                                {% set h = (pt.miles / max_miles.val) * (svg_height - 50) %}
+                                {% set y = svg_height - 25 - h %}
+                                <rect x="{{ x }}" y="{{ y }}" width="{{ bar_width }}" height="{{ h }}" rx="3" fill="url(#barGrad)" opacity="0.9">
+                                    <title>{{ pt.month }}: {{ "{:,}".format(pt.miles|round|int) }} miles</title>
+                                </rect>
+                                <text x="{{ x + bar_width / 2 }}" y="{{ y - 5 }}" text-anchor="middle" font-size="11" fill="#1e293b" font-weight="600">{{ "{:,}".format(pt.miles|round|int) }}</text>
+                                <text x="{{ x + bar_width / 2 }}" y="{{ svg_height - 8 }}" text-anchor="middle" font-size="11" fill="#64748b">{{ pt.month[2:] if pt.month|length >= 5 else pt.month }}</text>
+                            {% endfor %}
+                        </svg>
+                    </div>
+                    {% endif %}
+
+                    {% else %}
+                    <div style="background: #f8fafc; border-left: 4px solid var(--accent); padding: 14px 18px; border-radius: 6px; color: #475569; font-size: 0.9rem;">
+                        <strong>ℹ️ Insufficient Driving History:</strong> Observed driving rate analytics and trend charts activate once at least 2 odometer readings spanning at least 14 days are recorded.
+                        <div style="margin-top: 6px; font-size: 0.82rem; color: #64748b;">
+                            Current baseline projections rely on the vehicle profile estimate (~{{ (active_vehicle.estimated_annual_mileage / 365)|round|int }} miles/day).
+                            {% if usage_stats and usage_stats.observation_span_days is not none %}
+                            • <em>Current span: {{ usage_stats.observation_span_days }} days ({{ usage_stats.total_miles }} miles logged).</em>
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% endif %}
                 </div>
 
                 <!-- Maintenance Due Highlights -->
@@ -1840,9 +1964,41 @@
 
             <!-- TAB 8: QUIRKS & KNOWLEDGE -->
             <div id="pane-knowledge" class="tab-pane">
+                <!-- Focused Search Feature Card -->
+                <div class="card" style="background: linear-gradient(135deg, #ffffff 0%, #eff6ff 100%); border: 1px solid #bfdbfe; margin-bottom: 20px;">
+                    <div class="card-header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+                        <div>
+                            <div class="card-title" style="color: var(--primary); display: flex; align-items: center; gap: 8px;">
+                                <span>🎯 Focused Topic Intelligence Search</span>
+                                <span class="badge" style="background: #2563eb; color: #fff; font-size: 0.72rem;">EXTENDED RECURSIVE SEARCH</span>
+                            </div>
+                            <p style="font-size: 0.85rem; color: var(--text-muted); margin-top: 4px;">
+                                Run an extended query across NHTSA databases, enthusiast forums, and engineering archives for a specific topic (e.g. <em>exhaust, brake maintenance, paint behavior, bodywork, suspension, transmission</em>). Results are permanently saved to this vehicle's knowledge base.
+                            </p>
+                        </div>
+                    </div>
+                    <div style="margin-top: 10px; display: flex; flex-direction: column; gap: 10px;">
+                        <div style="display: flex; flex-wrap: wrap; gap: 8px; align-items: center;">
+                            <span style="font-size: 0.78rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase;">Quick Topics:</span>
+                            <button type="button" class="btn btn-outline btn-sm" style="font-size: 0.78rem; padding: 3px 10px; background: #fff;" onclick="fillAndRunTopic('Exhaust')">💨 Exhaust</button>
+                            <button type="button" class="btn btn-outline btn-sm" style="font-size: 0.78rem; padding: 3px 10px; background: #fff;" onclick="fillAndRunTopic('Brake Maintenance')">🛑 Brake Maintenance</button>
+                            <button type="button" class="btn btn-outline btn-sm" style="font-size: 0.78rem; padding: 3px 10px; background: #fff;" onclick="fillAndRunTopic('Paint Behavior')">🎨 Paint Behavior</button>
+                            <button type="button" class="btn btn-outline btn-sm" style="font-size: 0.78rem; padding: 3px 10px; background: #fff;" onclick="fillAndRunTopic('Bodywork')">🚙 Bodywork & Panel Care</button>
+                            <button type="button" class="btn btn-outline btn-sm" style="font-size: 0.78rem; padding: 3px 10px; background: #fff;" onclick="fillAndRunTopic('Suspension')">⚙️ Suspension</button>
+                            <button type="button" class="btn btn-outline btn-sm" style="font-size: 0.78rem; padding: 3px 10px; background: #fff;" onclick="fillAndRunTopic('Transmission Fluid')">🔄 Transmission</button>
+                        </div>
+                        <form onsubmit="submitInlineFocusedSearch(event)" style="display: flex; gap: 10px; margin-top: 4px;">
+                            <input type="text" id="inlineFocusedTopicInput" class="form-control" placeholder="Enter topic or component (e.g. exhaust, brake maintenance, paint behavior, bodywork...)" required style="flex-grow: 1;">
+                            <button type="submit" id="inlineFocusedTopicBtn" class="btn btn-primary" style="white-space: nowrap;">
+                                🔍 Search & Save to KB
+                            </button>
+                        </form>
+                    </div>
+                </div>
+
                 <div class="card">
                     <div class="card-header">
-                        <div class="card-title">💡 Add Vehicle Quirk or Knowledge Item</div>
+                        <div class="card-title">💡 Add Custom Vehicle Quirk or Knowledge Item</div>
                     </div>
                     <form id="createKnowledgeForm" onsubmit="submitKnowledge(event)">
                         <input type="hidden" name="vehicle_id" value="{{ active_vehicle.id if active_vehicle else 1 }}">
@@ -1858,6 +2014,7 @@
                                     <option value="COMMON_FAILURE_POINT">Common Failure Point</option>
                                     <option value="REAL_WORLD_PERFORMANCE">Real-World Performance / MPG</option>
                                     <option value="COMMUNITY_WISDOM">Community Wisdom</option>
+                                    <option value="MAINTENANCE_PRECAUTION">Maintenance Precaution</option>
                                 </select>
                             </div>
                             <div class="form-group">
@@ -1868,6 +2025,11 @@
                                     <option value="SUSPENSION">Suspension</option>
                                     <option value="BRAKES">Brakes</option>
                                     <option value="ELECTRICAL">Electrical</option>
+                                    <option value="HVAC">HVAC</option>
+                                    <option value="BODY_INTERIOR">Body / Interior</option>
+                                    <option value="EXHAUST">Exhaust</option>
+                                    <option value="FUEL_SYSTEM">Fuel System</option>
+                                    <option value="GENERAL">General</option>
                                 </select>
                             </div>
                             <div class="form-group">
@@ -1893,23 +2055,48 @@
                 </div>
 
                 <div class="card">
-                    <div class="card-header">
-                        <div class="card-title">Real-World Quirks & Community Intelligence</div>
+                    <div class="card-header" style="display: flex; justify-content: space-between; align-items: center;">
+                        <div class="card-title">Real-World Quirks & Community Intelligence ({{ knowledge_records|length }})</div>
+                        <span style="font-size: 0.8rem; color: var(--text-muted);">Permanently stored in vehicle knowledge base</span>
                     </div>
+                    {% if knowledge_records %}
                     {% for k in knowledge_records %}
-                    <div style="border-bottom: 1px solid var(--border); padding: 14px 0;">
-                        <div style="display: flex; justify-content: space-between; align-items: center;">
-                            <h4 style="font-size: 1rem; color: var(--primary);">{{ k.title }}</h4>
-                            <span class="badge badge-planned">{{ k.category.value.replace('_', ' ') }}</span>
+                    <div class="knowledge-item-card" id="knowledge-card-{{ k.id }}" style="border-bottom: 1px solid var(--border); padding: 14px 0; transition: opacity 0.3s ease;">
+                        <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 12px;">
+                            <div>
+                                <h4 style="font-size: 1rem; color: var(--primary);">{{ k.title }}</h4>
+                                <div style="display: flex; gap: 8px; align-items: center; margin-top: 4px; flex-wrap: wrap;">
+                                    <span class="badge badge-planned">{{ k.category.value.replace('_', ' ') }}</span>
+                                    {% if k.component_system %}
+                                    <span class="badge" style="background: #f1f5f9; color: #475569; font-size: 0.72rem;">{{ k.component_system.value }}</span>
+                                    {% endif %}
+                                    {% if k.severity %}
+                                    <span class="badge" style="{% if k.severity.value == 'CRITICAL_REPAIR' %}background: #fee2e2; color: #991b1b;{% elif k.severity.value == 'WATCH_ITEM' %}background: #fef3c7; color: #92400e;{% else %}background: #eff6ff; color: #1e40af;{% endif %} font-size: 0.72rem;">
+                                        {{ k.severity.value.replace('_', ' ') }}
+                                    </span>
+                                    {% endif %}
+                                    {% if k.source_community %}
+                                    <span style="font-size: 0.75rem; color: var(--text-muted); font-style: italic;">via {{ k.source_community }}</span>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            <button type="button" class="btn btn-outline btn-sm" style="padding: 3px 8px; font-size: 0.75rem; color: #b91c1c; border-color: #fecaca; white-space: nowrap;" onclick="deleteKnowledgeRecord({{ k.id }}, this)" title="Delete from Knowledge Base">
+                                🗑️ Delete
+                            </button>
                         </div>
-                        <p style="font-size: 0.9rem; margin-top: 6px;">{{ k.description }}</p>
+                        <p style="font-size: 0.9rem; margin-top: 6px; line-height: 1.45;">{{ k.description }}</p>
                         {% if k.recommended_action %}
-                        <div style="font-size: 0.85rem; margin-top: 6px; color: #065f46; background: #d1fae5; padding: 6px 10px; border-radius: 6px;">
+                        <div style="font-size: 0.85rem; margin-top: 8px; color: #065f46; background: #d1fae5; padding: 6px 10px; border-radius: 6px;">
                             <strong>Recommendation:</strong> {{ k.recommended_action }}
                         </div>
                         {% endif %}
                     </div>
                     {% endfor %}
+                    {% else %}
+                    <div style="padding: 24px 0; text-align: center; color: var(--text-muted); font-style: italic;">
+                        No knowledge items recorded yet. Use Auto-Discover or Focused Topic Search above to research this vehicle.
+                    </div>
+                    {% endif %}
                 </div>
             </div>
 
@@ -2030,6 +2217,10 @@
         function onVehicleChange() {
             const sel = document.getElementById('activeVehicleSelect');
             const vId = sel.value;
+            if (!vId) {
+                window.location.href = '/dashboard';
+                return;
+            }
             const activePane = document.querySelector('.tab-pane.active');
             const currentTab = activePane ? activePane.id.replace('pane-', '') : (sessionStorage.getItem('activeTab') || 'overview');
             window.location.href = `/dashboard?vehicle_id=${vId}#${currentTab}`;
@@ -2206,6 +2397,138 @@
                 }
             } catch (err) {
                 alert('Error during auto-discovery: ' + (err.message || err));
+            }
+        }
+
+        /* --- Focused Intelligence Topic Search & Knowledge Base Management --- */
+        function openFocusedSearchModal(vId, vName) {
+            if (vId) document.getElementById('focusedSearchVehicleId').value = vId;
+            if (vName) document.getElementById('focusedSearchVehicleName').innerText = `Targeted research for ${vName}`;
+            document.getElementById('focusedSearchInput').value = '';
+            document.getElementById('focusedSearchLoading').style.display = 'none';
+            document.getElementById('modalFocusedSearchBtn').disabled = false;
+            document.getElementById('focusedSearchModal').classList.add('open');
+            setTimeout(() => document.getElementById('focusedSearchInput').focus(), 100);
+        }
+
+        function closeFocusedSearchModal() {
+            document.getElementById('focusedSearchModal').classList.remove('open');
+        }
+
+        function fillAndRunTopic(topic) {
+            const input = document.getElementById('inlineFocusedTopicInput');
+            if (input) {
+                input.value = topic;
+                input.focus();
+            }
+        }
+
+        async function submitInlineFocusedSearch(e) {
+            e.preventDefault();
+            const input = document.getElementById('inlineFocusedTopicInput');
+            const topic = input.value.trim();
+            if (!topic) return;
+
+            const btn = document.getElementById('inlineFocusedTopicBtn');
+            const originalText = btn.innerText;
+            btn.disabled = true;
+            btn.innerText = '⏳ Searching...';
+
+            const activeSel = document.getElementById('activeVehicleSelect');
+            const vId = activeSel.value || '{{ active_vehicle.id if active_vehicle else 1 }}';
+
+            showToast(`🎯 Searching NHTSA, forums, & profiles for '${topic}'...`);
+
+            try {
+                const res = await fetch(`/api/v1/vehicles/${vId}/focused-search`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ topic: topic })
+                });
+
+                if (res.ok) {
+                    const data = await res.json();
+                    showToast(`✅ Added ${data.entries_count || 0} findings to knowledge base!`);
+                    alert(`✅ Focused Intelligence Search Complete for '${topic}'!\n\n` +
+                          `• Vehicle: ${data.vehicle_name}\n` +
+                          `• Component System: ${data.component_system}\n` +
+                          `• Findings Recorded: ${data.entries_count}\n\n` +
+                          `Sources searched:\n${data.sources_searched.map(s => '• ' + s).join('\n')}`);
+                    window.location.reload();
+                } else {
+                    const err = await res.json();
+                    alert(err.detail || 'Focused search failed.');
+                }
+            } catch (err) {
+                alert('Error running focused search: ' + err.message);
+            } finally {
+                btn.disabled = false;
+                btn.innerText = originalText;
+            }
+        }
+
+        async function submitModalFocusedSearch(e) {
+            e.preventDefault();
+            const vId = document.getElementById('focusedSearchVehicleId').value;
+            const topic = document.getElementById('focusedSearchInput').value.trim();
+            if (!topic) return;
+
+            const btn = document.getElementById('modalFocusedSearchBtn');
+            const loading = document.getElementById('focusedSearchLoading');
+            btn.disabled = true;
+            loading.style.display = 'block';
+
+            try {
+                const res = await fetch(`/api/v1/vehicles/${vId}/focused-search`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ topic: topic })
+                });
+
+                if (res.ok) {
+                    const data = await res.json();
+                    closeFocusedSearchModal();
+                    showToast(`✅ Saved ${data.entries_count} findings to knowledge base!`);
+                    alert(`✅ Focused Search Completed for '${topic}'!\n\n` +
+                          `• Vehicle: ${data.vehicle_name}\n` +
+                          `• Component System: ${data.component_system}\n` +
+                          `• Findings Recorded: ${data.entries_count}\n\n` +
+                          `Sources searched:\n${data.sources_searched.map(s => '• ' + s).join('\n')}`);
+                    window.location.reload();
+                } else {
+                    const err = await res.json();
+                    alert(err.detail || 'Focused search failed.');
+                }
+            } catch (err) {
+                alert('Error running focused search: ' + err.message);
+            } finally {
+                btn.disabled = false;
+                loading.style.display = 'none';
+            }
+        }
+
+        async function deleteKnowledgeRecord(kId, btn) {
+            if (!confirm('Are you sure you want to permanently remove this quirk/intelligence item from this vehicle\'s knowledge base?')) {
+                return;
+            }
+
+            try {
+                const res = await fetch(`/api/v1/knowledge/${kId}`, { method: 'DELETE' });
+                if (res.ok) {
+                    showToast('Knowledge item deleted.');
+                    const card = document.getElementById(`knowledge-card-${kId}`) || (btn ? btn.closest('.knowledge-item-card') : null);
+                    if (card) {
+                        card.style.opacity = '0';
+                        setTimeout(() => card.remove(), 300);
+                    } else {
+                        setTimeout(() => window.location.reload(), 400);
+                    }
+                } else {
+                    const err = await res.json();
+                    alert(err.detail || 'Failed to delete knowledge entry.');
+                }
+            } catch (err) {
+                alert('Error deleting knowledge record: ' + err.message);
             }
         }
 

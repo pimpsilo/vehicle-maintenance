@@ -53,6 +53,13 @@ def test_update_odometer(client: TestClient, sample_vehicle: Vehicle):
     assert res.status_code == 200
     assert res.json()["current_mileage"] == 106500
 
+    # Verify history entry created
+    history_res = client.get(f"/api/v1/vehicles/{sample_vehicle.id}/odometer/history")
+    assert history_res.status_code == 200
+    history = history_res.json()
+    assert len(history) >= 1
+    assert history[0]["mileage"] == 106500
+
     # Test decreasing odometer rejection
     fail_res = client.post(
         f"/api/v1/vehicles/{sample_vehicle.id}/odometer",
@@ -60,6 +67,50 @@ def test_update_odometer(client: TestClient, sample_vehicle: Vehicle):
     )
     assert fail_res.status_code == 400
     assert "cannot be lower" in fail_res.json()["detail"]
+
+def test_backdated_odometer_reading(client: TestClient, sample_vehicle: Vehicle):
+    # Ensure current mileage is known
+    current_mi = sample_vehicle.current_mileage
+    
+    # 1. Backdated reading with mileage <= current_mileage
+    backdated_res = client.post(
+        f"/api/v1/vehicles/{sample_vehicle.id}/odometer",
+        json={
+            "current_mileage": current_mi - 500,
+            "recorded_date": "2026-01-15"
+        }
+    )
+    assert backdated_res.status_code == 200
+    # current_mileage must NOT move
+    assert backdated_res.json()["current_mileage"] == current_mi
+
+    # History contains the backdated entry
+    history = client.get(f"/api/v1/vehicles/{sample_vehicle.id}/odometer/history").json()
+    backdated_entries = [e for e in history if e["mileage"] == current_mi - 500]
+    assert len(backdated_entries) == 1
+    assert "2026-01-15" in backdated_entries[0]["recorded_at"]
+
+    # 2. Backdated reading with mileage > current_mileage must be rejected
+    fail_res = client.post(
+        f"/api/v1/vehicles/{sample_vehicle.id}/odometer",
+        json={
+            "current_mileage": current_mi + 5000,
+            "recorded_date": "2026-01-15"
+        }
+    )
+    assert fail_res.status_code == 400
+    assert "cannot be greater" in fail_res.json()["detail"]
+
+def test_mobile_odometer_persists_history(client: TestClient, sample_vehicle: Vehicle):
+    res = client.post(
+        f"/v/{sample_vehicle.id}/odometer",
+        json={"current_mileage": 107000}
+    )
+    assert res.status_code == 200
+    assert res.json()["current_mileage"] == 107000
+
+    history = client.get(f"/api/v1/vehicles/{sample_vehicle.id}/odometer/history").json()
+    assert history[0]["mileage"] == 107000
 
 def test_delete_vehicle(client: TestClient):
     # 1. Create a disposable vehicle

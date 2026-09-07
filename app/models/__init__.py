@@ -5,6 +5,11 @@ from app.models.vehicle import (
     VehicleRead,
     VehicleUpdate,
     OdometerUpdate,
+    OdometerEntry,
+    OdometerEntryBase,
+    OdometerEntryRead,
+    MonthMileagePoint,
+    VehicleUsageStats,
 )
 from app.models.document import (
     VehicleDocument,
@@ -97,6 +102,11 @@ __all__ = [
     "VehicleRead",
     "VehicleUpdate",
     "OdometerUpdate",
+    "OdometerEntry",
+    "OdometerEntryBase",
+    "OdometerEntryRead",
+    "MonthMileagePoint",
+    "VehicleUsageStats",
     "VehicleDocument",
     "VehicleDocumentBase",
     "VehicleDocumentCreate",

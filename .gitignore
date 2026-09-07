@@ -38,4 +38,5 @@ client_secret*.json
 ehthumbs.db
 Thumbs.db
 .antigravity/
+.codewhale/
 

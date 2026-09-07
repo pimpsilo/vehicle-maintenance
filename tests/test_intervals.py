@@ -175,3 +175,104 @@ def test_acknowledge_overdue_maintenance(client: TestClient, sample_vehicle: Veh
     assert f_after_item["status"] == "OK"
     assert f_after_item["next_due_mileage"] == 110000
     assert f_after_item["miles_remaining"] == 5000
+
+def test_observed_rate_forecasting_and_surge(session: Session, sample_vehicle: Vehicle):
+    from datetime import datetime, timezone
+    from app.models.vehicle import OdometerEntry
+
+    today = date.today()
+    sdef = ServiceDefinition(
+        service_name="Transmission Fluid Service",
+        interval_miles=10000,
+        interval_months=24,
+    )
+    session.add(sdef)
+    session.commit()
+    session.refresh(sdef)
+
+    # 1. Without history: source is estimated, approaching_faster is False
+    fc_init = MaintenanceIntervalEngine.calculate_forecasts(session, sample_vehicle.id, current_date=today)
+    item_init = next(f for f in fc_init if f.service_definition_id == sdef.id)
+    assert item_init.accrual_rate_source == "estimated"
+    assert item_init.approaching_faster is False
+
+    # 2. Add recent completed service to make status OK (5,000 miles remaining)
+    rec = ServiceRecord(
+        vehicle_id=sample_vehicle.id,
+        service_definition_id=sdef.id,
+        service_name=sdef.service_name,
+        completed_date=today - timedelta(days=30),
+        completed_mileage=100000,
+        performed_by_type=PerformedByType.DIY,
+    )
+    session.add(rec)
+    session.commit()
+
+    # 3. Add high-rate odometer entries over 30 days (100 miles/day vs ~33 miles/day estimate)
+    # 30 days ago: 102,000 -> today: 105,000 (3,000 mi in 30 days = 100 mi/day, +204% over 12k/yr)
+    now = datetime.now(timezone.utc)
+    e1 = OdometerEntry(vehicle_id=sample_vehicle.id, mileage=102000, recorded_at=now - timedelta(days=30))
+    e2 = OdometerEntry(vehicle_id=sample_vehicle.id, mileage=105000, recorded_at=now)
+    session.add_all([e1, e2])
+    session.commit()
+
+    fc_surge = MaintenanceIntervalEngine.calculate_forecasts(session, sample_vehicle.id, current_date=today)
+    item_surge = next(f for f in fc_surge if f.service_definition_id == sdef.id)
+    assert item_surge.accrual_rate_source == "observed"
+    assert item_surge.accrual_rate_mpd >= 90.0
+    assert item_surge.rate_delta_pct > 25.0
+    assert item_surge.approaching_faster is True
+    assert "above plan" in item_surge.action_summary
+
+def test_scheduler_rate_surge_notification(session: Session, sample_vehicle: Vehicle):
+    from datetime import datetime, timezone
+    from sqlmodel import select
+    from app.models.vehicle import OdometerEntry
+    from app.models.notification import NotificationRecord
+    from app.services.scheduler_srv import run_scheduled_checks
+
+    today = date.today()
+    # 1. Create a service definition with 5,000 mi interval, 12 months (calendar far away)
+    sdef = ServiceDefinition(
+        service_name="Differential Gear Oil",
+        interval_miles=5000,
+        interval_months=12,
+    )
+    session.add(sdef)
+    session.commit()
+    session.refresh(sdef)
+
+    # 2. Service completed 30 days ago at 102,500 mi (next due at 107,500 mi)
+    # Remaining miles: 107,500 - 105,000 = 2,500 mi
+    rec = ServiceRecord(
+        vehicle_id=sample_vehicle.id,
+        service_definition_id=sdef.id,
+        service_name=sdef.service_name,
+        completed_date=today - timedelta(days=30),
+        completed_mileage=102500,
+        performed_by_type=PerformedByType.DIY,
+    )
+    session.add(rec)
+    session.commit()
+
+    # 3. Add heavy driving history: 100 mi/day over 30 days
+    # At 100 mi/day, 2,500 miles will be covered in 25 days (<= 30 days due-soon threshold)
+    # Calendar date is 11 months away (> 30 days)
+    now = datetime.now(timezone.utc)
+    e1 = OdometerEntry(vehicle_id=sample_vehicle.id, mileage=102000, recorded_at=now - timedelta(days=30))
+    e2 = OdometerEntry(vehicle_id=sample_vehicle.id, mileage=105000, recorded_at=now)
+    session.add_all([e1, e2])
+    session.commit()
+
+    # 4. Trigger scheduled checks
+    run_scheduled_checks(session=session)
+
+    # 5. Verify RATE_SURGE notification was recorded
+    surge_notifications = session.exec(
+        select(NotificationRecord).where(
+            NotificationRecord.vehicle_id == sample_vehicle.id,
+            NotificationRecord.event_type == "RATE_SURGE"
+        )
+    ).all()
+    assert len(surge_notifications) >= 1
+    assert "Driving Pace Surge" in surge_notifications[0].title

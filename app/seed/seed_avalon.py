@@ -1,7 +1,7 @@
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta, timezone
 from sqlmodel import Session, select
 from app.database import engine, init_db
-from app.models.vehicle import Vehicle
+from app.models.vehicle import Vehicle, OdometerEntry
 from app.models.document import VehicleDocument, DocumentType
 from app.models.maintenance import (
     ServiceDefinition,
@@ -58,6 +58,20 @@ def seed_database():
         session.refresh(avalon)
         vehicle_id = avalon.id
         print(f"Created vehicle: 2014 Toyota Avalon (ID: {vehicle_id})")
+
+        # 1b. Seed Odometer History Entries
+        now_dt = datetime.now(timezone.utc)
+        historical_readings = [
+            (101000, now_dt - timedelta(days=120)),
+            (102000, now_dt - timedelta(days=90)),
+            (103100, now_dt - timedelta(days=60)),
+            (104200, now_dt - timedelta(days=30)),
+            (105000, now_dt),
+        ]
+        for mileage_val, rec_dt in historical_readings:
+            session.add(OdometerEntry(vehicle_id=vehicle_id, mileage=mileage_val, recorded_at=rec_dt))
+        session.commit()
+        print(f"Seeded {len(historical_readings)} historical odometer entries for Avalon.")
 
         # 2. Service Definitions (Factory Maintenance Schedules)
         sdef_oil = ServiceDefinition(

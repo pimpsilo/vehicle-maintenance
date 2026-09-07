@@ -1,0 +1,911 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Garage Fleet Overview | VehicleOps Tracker</title>
+    <style>
+        :root {
+            --primary: #1e3a8a;
+            --primary-hover: #1e40af;
+            --accent: #2563eb;
+            --bg: #f8fafc;
+            --sidebar-bg: #0f172a;
+            --card-bg: #ffffff;
+            --text-main: #0f172a;
+            --text-muted: #64748b;
+            --border: #e2e8f0;
+            --success: #10b981;
+            --warning: #f59e0b;
+            --danger: #ef4444;
+            --info: #0ea5e9;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--bg);
+            color: var(--text-main);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+        .header {
+            background-color: #ffffff;
+            border-bottom: 1px solid var(--border);
+            padding: 16px 32px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: sticky;
+            top: 0;
+            z-index: 20;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+        }
+        .brand {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        .brand-icon {
+            width: 40px;
+            height: 40px;
+            background: linear-gradient(135deg, var(--primary) 0%, var(--accent) 100%);
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #fff;
+            font-size: 1.3rem;
+            box-shadow: 0 2px 4px rgba(37, 99, 235, 0.25);
+        }
+        .brand-title {
+            font-size: 1.25rem;
+            font-weight: 700;
+            color: var(--primary);
+            letter-spacing: -0.02em;
+        }
+        .brand-subtitle {
+            font-size: 0.8rem;
+            color: var(--text-muted);
+            font-weight: 500;
+        }
+        .header-actions {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 8px 16px;
+            font-size: 0.88rem;
+            font-weight: 600;
+            border-radius: 8px;
+            border: 1px solid transparent;
+            cursor: pointer;
+            text-decoration: none;
+            transition: all 0.15s ease;
+        }
+        .btn-primary {
+            background-color: var(--accent);
+            color: #ffffff;
+        }
+        .btn-primary:hover {
+            background-color: var(--primary-hover);
+            box-shadow: 0 2px 6px rgba(37, 99, 235, 0.3);
+        }
+        .btn-outline {
+            background-color: transparent;
+            border-color: var(--border);
+            color: var(--text-main);
+        }
+        .btn-outline:hover {
+            background-color: #f1f5f9;
+            border-color: #cbd5e1;
+        }
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 28px 32px 60px;
+            width: 100%;
+        }
+        /* Fleet Stat Banner */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 16px;
+            margin-bottom: 28px;
+        }
+        .stat-card {
+            background: var(--card-bg);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 18px 20px;
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
+        }
+        .stat-icon {
+            width: 46px;
+            height: 46px;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.4rem;
+            flex-shrink: 0;
+        }
+        .stat-val {
+            font-size: 1.45rem;
+            font-weight: 700;
+            color: var(--text-main);
+            line-height: 1.1;
+        }
+        .stat-label {
+            font-size: 0.8rem;
+            font-weight: 600;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.03em;
+            margin-top: 4px;
+        }
+
+        /* Section Heading */
+        .section-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        .section-title {
+            font-size: 1.25rem;
+            font-weight: 700;
+            color: var(--primary);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        /* Vehicles Grid */
+        .vehicles-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(380px, 1fr));
+            gap: 24px;
+        }
+        .vehicle-card {
+            background: var(--card-bg);
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.04);
+            transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
+            position: relative;
+        }
+        .vehicle-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.07);
+            border-color: #cbd5e1;
+        }
+        .vehicle-card-top {
+            padding: 20px;
+            display: flex;
+            gap: 16px;
+            align-items: flex-start;
+            background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+            border-bottom: 1px solid var(--border);
+            position: relative;
+        }
+        .vehicle-photo {
+            width: 100px;
+            height: 80px;
+            border-radius: 10px;
+            object-fit: cover;
+            border: 1px solid var(--border);
+            background: #e2e8f0;
+            flex-shrink: 0;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+        }
+        .vehicle-silhouette {
+            width: 100px;
+            height: 80px;
+            border-radius: 10px;
+            background: linear-gradient(135deg, #e2e8f0 0%, #cbd5e1 100%);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            color: #475569;
+            flex-shrink: 0;
+            border: 1px solid #cbd5e1;
+        }
+        .vehicle-info {
+            flex-grow: 1;
+            min-width: 0;
+        }
+        .vehicle-title {
+            font-size: 1.15rem;
+            font-weight: 700;
+            color: var(--text-main);
+            margin-bottom: 2px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .vehicle-trim {
+            font-size: 0.82rem;
+            color: var(--text-muted);
+            margin-bottom: 6px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .badges-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+        }
+        .badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            padding: 3px 8px;
+            border-radius: 6px;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+        .badge-plate {
+            background: #e0e7ff;
+            color: #3730a3;
+            border: 1px solid #c7d2fe;
+        }
+        .badge-vin {
+            background: #f1f5f9;
+            color: #475569;
+            font-family: monospace;
+            font-size: 0.72rem;
+        }
+        .health-indicator {
+            position: absolute;
+            top: 14px;
+            right: 14px;
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-size: 0.72rem;
+            font-weight: 700;
+            letter-spacing: 0.02em;
+            text-transform: uppercase;
+        }
+        .health-good {
+            background: #d1fae5;
+            color: #065f46;
+            border: 1px solid #a7f3d0;
+        }
+        .health-warning {
+            background: #fef3c7;
+            color: #92400e;
+            border: 1px solid #fde68a;
+        }
+        .health-critical {
+            background: #fee2e2;
+            color: #991b1b;
+            border: 1px solid #fecaca;
+        }
+
+        .vehicle-card-body {
+            padding: 18px 20px;
+            flex-grow: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
+        }
+
+        /* Mileage Row */
+        .mileage-box {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: #f8fafc;
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 10px 14px;
+        }
+        .mileage-val {
+            font-size: 1.25rem;
+            font-weight: 800;
+            color: var(--primary);
+            letter-spacing: -0.02em;
+        }
+        .mileage-sub {
+            font-size: 0.75rem;
+            font-weight: 500;
+            color: var(--text-muted);
+        }
+        .pace-chip {
+            font-size: 0.75rem;
+            background: #e2e8f0;
+            color: #334155;
+            padding: 3px 8px;
+            border-radius: 6px;
+            font-weight: 600;
+        }
+
+        /* Oil Change Row */
+        .oil-status-box {
+            border-radius: 10px;
+            padding: 12px 14px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            border: 1px solid var(--border);
+        }
+        .oil-status-box.status-ok {
+            background: #f0fdf4;
+            border-color: #bbf7d0;
+        }
+        .oil-status-box.status-due_soon {
+            background: #fffbeb;
+            border-color: #fde68a;
+        }
+        .oil-status-box.status-overdue {
+            background: #fef2f2;
+            border-color: #fecaca;
+        }
+        .oil-status-box.status-not_configured {
+            background: #f8fafc;
+            border-color: #e2e8f0;
+        }
+        .oil-info-left {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .oil-icon {
+            font-size: 1.2rem;
+        }
+        .oil-title {
+            font-size: 0.85rem;
+            font-weight: 700;
+            color: var(--text-main);
+        }
+        .oil-desc {
+            font-size: 0.78rem;
+            color: var(--text-muted);
+        }
+
+        /* Upcoming Events list */
+        .events-section {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+        .events-title {
+            font-size: 0.78rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+            color: var(--text-muted);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .event-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 8px 12px;
+            background: #f8fafc;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            font-size: 0.82rem;
+        }
+        .event-item-urgent {
+            background: #fff1f2;
+            border-color: #fecdd3;
+        }
+        .event-item-name {
+            font-weight: 600;
+            color: var(--text-main);
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .event-badge {
+            font-size: 0.72rem;
+            font-weight: 700;
+            padding: 2px 6px;
+            border-radius: 4px;
+        }
+        .event-badge-overdue {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+        .event-badge-soon {
+            background: #fef3c7;
+            color: #92400e;
+        }
+        .event-badge-info {
+            background: #e0f2fe;
+            color: #0369a1;
+        }
+
+        /* Card Actions */
+        .vehicle-card-footer {
+            padding: 14px 20px;
+            background: #ffffff;
+            border-top: 1px solid var(--border);
+            display: flex;
+            gap: 8px;
+        }
+        .btn-enter-dash {
+            flex-grow: 1;
+            justify-content: center;
+            background-color: var(--primary);
+            color: #ffffff;
+            font-size: 0.9rem;
+            padding: 10px 16px;
+        }
+        .btn-enter-dash:hover {
+            background-color: var(--primary-hover);
+        }
+
+        /* Empty State */
+        .empty-fleet-card {
+            background: var(--card-bg);
+            border: 2px dashed var(--border);
+            border-radius: 14px;
+            padding: 60px 20px;
+            text-align: center;
+            grid-column: 1 / -1;
+        }
+        .empty-fleet-icon {
+            font-size: 3rem;
+            margin-bottom: 12px;
+            opacity: 0.6;
+        }
+
+        /* Modal Styles */
+        .modal-backdrop {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(15, 23, 42, 0.6);
+            backdrop-filter: blur(2px);
+            z-index: 50;
+            align-items: center;
+            justify-content: center;
+        }
+        .modal-backdrop.open { display: flex; }
+        .modal-box {
+            background: #ffffff;
+            border-radius: 14px;
+            width: 100%;
+            max-width: 500px;
+            padding: 24px;
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.2);
+        }
+        .modal-title {
+            font-size: 1.15rem;
+            font-weight: 700;
+            color: var(--primary);
+            margin-bottom: 16px;
+        }
+        .form-group {
+            margin-bottom: 14px;
+        }
+        .form-group label {
+            display: block;
+            font-size: 0.82rem;
+            font-weight: 600;
+            color: var(--text-main);
+            margin-bottom: 4px;
+        }
+        .form-control {
+            width: 100%;
+            padding: 8px 12px;
+            border-radius: 8px;
+            border: 1px solid var(--border);
+            font-size: 0.9rem;
+        }
+        .modal-actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+            margin-top: 20px;
+        }
+
+        /* Toast */
+        #toast {
+            position: fixed;
+            bottom: 24px;
+            right: 24px;
+            background: #1e293b;
+            color: #fff;
+            padding: 12px 20px;
+            border-radius: 8px;
+            font-size: 0.9rem;
+            font-weight: 500;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            display: none;
+            z-index: 100;
+        }
+
+        @media (max-width: 768px) {
+            .header { padding: 12px 16px; flex-direction: column; gap: 12px; align-items: flex-start; }
+            .header-actions { width: 100%; justify-content: space-between; }
+            .container { padding: 16px; }
+            .vehicles-grid { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Header -->
+    <header class="header">
+        <div class="brand">
+            <div class="brand-icon">🚘</div>
+            <div>
+                <div class="brand-title">VehicleOps Tracker</div>
+                <div class="brand-subtitle">Garage Fleet Management & Intelligence</div>
+            </div>
+        </div>
+        <div class="header-actions">
+            <a href="/v" class="btn btn-outline" title="Switch to Mobile Fleet Hub">📱 Mobile Portal</a>
+            <button type="button" class="btn btn-primary" onclick="openAddVehicleModal()">+ Add New Vehicle</button>
+        </div>
+    </header>
+
+    <main class="container">
+        <!-- Fleet Stat Banner -->
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-icon" style="background: #eff6ff; color: #2563eb;">🚗</div>
+                <div>
+                    <div class="stat-val">{{ fleet_stats.total_vehicles }}</div>
+                    <div class="stat-label">Fleet Vehicles</div>
+                </div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon" style="background: #f0fdf4; color: #16a34a;">🛣️</div>
+                <div>
+                    <div class="stat-val">{{ "{:,}".format(fleet_stats.total_mileage) }} mi</div>
+                    <div class="stat-label">Total Fleet Mileage</div>
+                </div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon" style="background: {% if fleet_stats.total_action_items > 0 %}#fef2f2; color: #dc2626;{% else %}#f8fafc; color: #64748b;{% endif %}">
+                    {% if fleet_stats.total_action_items > 0 %}⚠️{% else %}✅{% endif %}
+                </div>
+                <div>
+                    <div class="stat-val" style="{% if fleet_stats.total_action_items > 0 %}color: #dc2626;{% endif %}">
+                        {{ fleet_stats.total_action_items }}
+                    </div>
+                    <div class="stat-label">Action Items Required</div>
+                </div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon" style="background: #faf5ff; color: #9333ea;">🔧</div>
+                <div>
+                    <div class="stat-val">{{ fleet_stats.total_active_orders }}</div>
+                    <div class="stat-label">Active Work Orders</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Vehicles Grid Header -->
+        <div class="section-header">
+            <div class="section-title">
+                <span>Select a Vehicle to Manage</span>
+            </div>
+            <span style="font-size: 0.85rem; color: var(--text-muted); font-weight: 500;">
+                Click any vehicle card to enter its active operations dashboard
+            </span>
+        </div>
+
+        <!-- Vehicles Grid -->
+        <div class="vehicles-grid">
+            {% if vehicle_summaries %}
+                {% for s in vehicle_summaries %}
+                <div class="vehicle-card" id="card-vehicle-{{ s.vehicle.id }}">
+                    <!-- Card Top Banner -->
+                    <div class="vehicle-card-top">
+                        <!-- Vehicle Photo or Silhouette -->
+                        {% if s.vehicle.photo_url %}
+                        <img src="{{ s.vehicle.photo_url }}" alt="{{ s.vehicle.year }} {{ s.vehicle.make }} {{ s.vehicle.model }}" class="vehicle-photo">
+                        {% else %}
+                        <div class="vehicle-silhouette">
+                            <svg width="48" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M19 17h2c.6 0 1-.4 1-1v-3c0-.9-.7-1.7-1.5-1.9C18.7 10.6 16 10 16 10s-1.3-1.4-2.2-2.3c-.5-.4-1.1-.7-1.8-.7H5c-.6 0-1.1.4-1.4.9l-1.4 2.9A3.7 3.7 0 0 0 2 12v4c0 .6.4 1 1 1h2" />
+                                <circle cx="7" cy="17" r="2" />
+                                <path d="M9 17h6" />
+                                <circle cx="17" cy="17" r="2" />
+                            </svg>
+                            <span style="font-size: 0.65rem; font-weight: 700; margin-top: 2px;">{{ s.vehicle.make }}</span>
+                        </div>
+                        {% endif %}
+
+                        <!-- Vehicle Identity -->
+                        <div class="vehicle-info">
+                            <div class="vehicle-title" title="{{ s.vehicle.year }} {{ s.vehicle.make }} {{ s.vehicle.model }}">
+                                {{ s.vehicle.year }} {{ s.vehicle.make }} {{ s.vehicle.model }}
+                            </div>
+                            <div class="vehicle-trim">
+                                {{ s.vehicle.trim or 'Standard Trim' }}
+                            </div>
+                            <div class="badges-row">
+                                <span class="badge badge-plate">🚗 {{ s.vehicle.license_plate or 'No Plate' }}</span>
+                                <span class="badge badge-vin" title="{{ s.vehicle.vin }}">VIN: ...{{ s.vehicle.vin[-8:] if s.vehicle.vin and s.vehicle.vin|length >= 8 else s.vehicle.vin }}</span>
+                            </div>
+                        </div>
+
+                        <!-- Overall Health Indicator Badge -->
+                        <span class="health-indicator health-{{ s.health_class }}">
+                            {{ s.health_label }}
+                        </span>
+                    </div>
+
+                    <!-- Card Body -->
+                    <div class="vehicle-card-body">
+                        <!-- Mileage & Pace -->
+                        <div class="mileage-box">
+                            <div>
+                                <div class="mileage-val">{{ "{:,}".format(s.vehicle.current_mileage) }} mi</div>
+                                <div class="mileage-sub">Current Odometer</div>
+                            </div>
+                            <div style="display: flex; align-items: center; gap: 8px;">
+                                {% if s.usage_pace %}
+                                <span class="pace-chip" title="Observed daily burn rate">~{{ s.usage_pace }}</span>
+                                {% endif %}
+                                <button type="button" class="btn btn-outline" style="padding: 4px 8px; font-size: 0.75rem;" onclick="openQuickOdometerModal({{ s.vehicle.id }}, '{{ s.vehicle.year }} {{ s.vehicle.make|replace("'", "\\'") }} {{ s.vehicle.model|replace("'", "\\'") }}', {{ s.vehicle.current_mileage }})">
+                                    ✏️ Log
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Oil Change Status Box -->
+                        <div class="oil-status-box status-{{ s.oil_status.status|lower }}">
+                            <div class="oil-info-left">
+                                <div class="oil-icon">🛢️</div>
+                                <div>
+                                    <div class="oil-title">Next Oil Change</div>
+                                    <div class="oil-desc">{{ s.oil_status.text }}</div>
+                                </div>
+                            </div>
+                            <span class="badge {{ s.oil_status.badge_class }}">
+                                {{ s.oil_status.label }}
+                            </span>
+                        </div>
+
+                        <!-- Upcoming Events & Renewals -->
+                        <div class="events-section">
+                            <div class="events-title">
+                                <span>Upcoming Deadlines & Services</span>
+                                <span>{{ s.urgent_items|length }} pending</span>
+                            </div>
+                            {% if s.urgent_items %}
+                                {% for item in s.urgent_items[:3] %}
+                                <div class="event-item {% if item.severity == 'CRITICAL' %}event-item-urgent{% endif %}">
+                                    <span class="event-item-name">
+                                        <span>{{ item.icon }}</span>
+                                        <span>{{ item.title }}</span>
+                                    </span>
+                                    <span class="event-badge {{ item.badge_class }}">{{ item.badge_text }}</span>
+                                </div>
+                                {% endfor %}
+                            {% else %}
+                                <div class="event-item" style="color: var(--text-muted); justify-content: center; font-style: italic;">
+                                    ✅ All maintenance and documents up to date
+                                </div>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <!-- Card Actions -->
+                    <div class="vehicle-card-footer">
+                        <a href="/dashboard?vehicle_id={{ s.vehicle.id }}" class="btn btn-enter-dash">
+                            Open Dashboard →
+                        </a>
+                        <a href="/v/{{ s.vehicle.id }}" target="_blank" class="btn btn-outline" title="Open Mobile Portal">
+                            📱 Mobile
+                        </a>
+                    </div>
+                </div>
+                {% endfor %}
+            {% else %}
+                <div class="empty-fleet-card">
+                    <div class="empty-fleet-icon">🚙</div>
+                    <h3 style="font-size: 1.2rem; color: var(--primary); margin-bottom: 8px;">No Vehicles Registered Yet</h3>
+                    <p style="font-size: 0.9rem; color: var(--text-muted); margin-bottom: 20px;">
+                        Add your first vehicle with its VIN to auto-populate specifications, maintenance intervals, and technical manuals.
+                    </p>
+                    <button type="button" class="btn btn-primary" onclick="openAddVehicleModal()">+ Add Your First Vehicle</button>
+                </div>
+            {% endif %}
+        </div>
+    </main>
+
+    <!-- Quick Odometer Modal -->
+    <div id="quickOdometerModal" class="modal-backdrop">
+        <div class="modal-box">
+            <div class="modal-title">✏️ Quick Odometer Log</div>
+            <p id="quickOdoVehicleName" style="font-size: 0.9rem; color: var(--text-muted); margin-bottom: 14px; font-weight: 500;"></p>
+            <form id="quickOdometerForm" onsubmit="submitQuickOdometer(event)">
+                <input type="hidden" id="quickOdoVehicleId">
+                <div class="form-group">
+                    <label>Current Recorded Mileage</label>
+                    <input type="text" id="quickOdoCurrentMileage" class="form-control" disabled style="background: #f1f5f9;">
+                </div>
+                <div class="form-group">
+                    <label>New Odometer Reading (Miles) *</label>
+                    <input type="number" id="quickOdoNewMileage" class="form-control" required min="1" placeholder="e.g. 105450">
+                </div>
+                <div class="form-group">
+                    <label>Log / Paper Date (Optional backdating)</label>
+                    <input type="date" id="quickOdoDate" class="form-control">
+                </div>
+                <div class="modal-actions">
+                    <button type="button" class="btn btn-outline" onclick="closeQuickOdometerModal()">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Save Odometer Reading</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Add Vehicle Modal -->
+    <div id="addVehicleModal" class="modal-backdrop">
+        <div class="modal-box">
+            <div class="modal-title">+ Add New Vehicle</div>
+            <form id="addVehicleForm" onsubmit="submitAddVehicle(event)">
+                <div class="form-group">
+                    <label>VIN (17 Characters) *</label>
+                    <input type="text" name="vin" class="form-control" required maxlength="17" placeholder="e.g. 4T1BK1EB5EU000001" style="text-transform: uppercase;">
+                </div>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                    <div class="form-group">
+                        <label>Year *</label>
+                        <input type="number" name="year" class="form-control" required min="1950" max="2035" placeholder="e.g. 2015">
+                    </div>
+                    <div class="form-group">
+                        <label>Make *</label>
+                        <input type="text" name="make" class="form-control" required placeholder="e.g. Toyota">
+                    </div>
+                </div>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                    <div class="form-group">
+                        <label>Model *</label>
+                        <input type="text" name="model" class="form-control" required placeholder="e.g. Avalon">
+                    </div>
+                    <div class="form-group">
+                        <label>Trim</label>
+                        <input type="text" name="trim" class="form-control" placeholder="e.g. XLE Touring">
+                    </div>
+                </div>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                    <div class="form-group">
+                        <label>Current Mileage *</label>
+                        <input type="number" name="current_mileage" class="form-control" required min="0" placeholder="e.g. 105000">
+                    </div>
+                    <div class="form-group">
+                        <label>License Plate</label>
+                        <input type="text" name="license_plate" class="form-control" placeholder="e.g. 7XYZ890">
+                    </div>
+                </div>
+                <div class="modal-actions">
+                    <button type="button" class="btn btn-outline" onclick="closeAddVehicleModal()">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Create & Run Auto-Discovery</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Toast Notification -->
+    <div id="toast"></div>
+
+    <script>
+        function showToast(msg) {
+            const toast = document.getElementById('toast');
+            toast.innerText = msg;
+            toast.style.display = 'block';
+            setTimeout(() => { toast.style.display = 'none'; }, 3500);
+        }
+
+        /* --- Quick Odometer Modal --- */
+        function openQuickOdometerModal(vId, name, currentMiles) {
+            document.getElementById('quickOdoVehicleId').value = vId;
+            document.getElementById('quickOdoVehicleName').innerText = `Updating mileage for ${name}`;
+            document.getElementById('quickOdoCurrentMileage').value = Number(currentMiles).toLocaleString() + ' mi';
+            document.getElementById('quickOdoNewMileage').value = '';
+            document.getElementById('quickOdoNewMileage').min = 1;
+            document.getElementById('quickOdoDate').value = new Date().toISOString().split('T')[0];
+            document.getElementById('quickOdometerModal').classList.add('open');
+        }
+
+        function closeQuickOdometerModal() {
+            document.getElementById('quickOdometerModal').classList.remove('open');
+        }
+
+        async function submitQuickOdometer(e) {
+            e.preventDefault();
+            const vId = document.getElementById('quickOdoVehicleId').value;
+            const newMiles = parseInt(document.getElementById('quickOdoNewMileage').value);
+            const logDate = document.getElementById('quickOdoDate').value;
+
+            try {
+                const res = await fetch(`/api/v1/vehicles/${vId}/odometer`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        mileage: newMiles,
+                        recorded_at: logDate ? new Date(logDate).toISOString() : null
+                    })
+                });
+
+                if (res.ok) {
+                    showToast('Odometer updated successfully!');
+                    closeQuickOdometerModal();
+                    setTimeout(() => window.location.reload(), 600);
+                } else {
+                    const err = await res.json();
+                    alert(err.detail || 'Failed to update odometer.');
+                }
+            } catch (err) {
+                alert('Error submitting odometer: ' + err.message);
+            }
+        }
+
+        /* --- Add Vehicle Modal --- */
+        function openAddVehicleModal() {
+            document.getElementById('addVehicleModal').classList.add('open');
+        }
+
+        function closeAddVehicleModal() {
+            document.getElementById('addVehicleModal').classList.remove('open');
+        }
+
+        async function submitAddVehicle(e) {
+            e.preventDefault();
+            const form = e.target;
+            const payload = {
+                vin: form.vin.value.trim().toUpperCase(),
+                year: parseInt(form.year.value),
+                make: form.make.value.trim(),
+                model: form.model.value.trim(),
+                trim: form.trim.value.trim() || null,
+                current_mileage: parseInt(form.current_mileage.value),
+                license_plate: form.license_plate.value.trim() || null,
+                estimated_annual_mileage: 12000
+            };
+
+            try {
+                showToast('Registering vehicle & auto-discovering specs...');
+                const res = await fetch('/api/v1/vehicles', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                if (res.ok) {
+                    const v = await res.json();
+                    // trigger auto-discover in background
+                    try {
+                        await fetch(`/api/v1/vehicles/${v.id}/auto-discover`, { method: 'POST' });
+                    } catch (_) {}
+                    showToast(`Vehicle ${v.year} ${v.make} ${v.model} registered!`);
+                    closeAddVehicleModal();
+                    setTimeout(() => {
+                        window.location.href = `/dashboard?vehicle_id=${v.id}`;
+                    }, 800);
+                } else {
+                    const err = await res.json();
+                    alert(err.detail || 'Failed to register vehicle.');
+                }
+            } catch (err) {
+                alert('Error creating vehicle: ' + err.message);
+            }
+        }
+    </script>
+</body>
+</html>

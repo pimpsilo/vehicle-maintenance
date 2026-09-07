@@ -30,3 +30,28 @@ def test_vehicle_knowledge_search_and_filtering(client: TestClient, sample_vehic
     filter_res = client.get("/api/v1/knowledge?component_system=ENGINE&severity=WATCH_ITEM")
     assert filter_res.status_code == 200
     assert len(filter_res.json()) >= 1
+
+def test_delete_knowledge_entry(client: TestClient, sample_vehicle: Vehicle):
+    # 1. Create entry
+    create_res = client.post(
+        "/api/v1/knowledge",
+        json={
+            "vehicle_id": sample_vehicle.id,
+            "category": "COMMUNITY_WISDOM",
+            "component_system": "BODY_INTERIOR",
+            "title": "Clearcoat UV Vulnerability",
+            "description": "Roof and hood need ceramic sealant.",
+            "severity": "INFO",
+        }
+    )
+    assert create_res.status_code == 201
+    k_id = create_res.json()["id"]
+
+    # 2. Delete entry
+    del_res = client.delete(f"/api/v1/knowledge/{k_id}")
+    assert del_res.status_code == 200
+    assert del_res.json()["message"] == "Knowledge entry deleted successfully."
+
+    # 3. Verify 404 on get
+    get_res = client.get(f"/api/v1/knowledge/{k_id}")
+    assert get_res.status_code == 404
