@@ -781,9 +781,16 @@
                 <div style="display: flex; gap: 8px;">
                     <button type="button" class="btn btn-outline btn-sm" onclick="downloadQr('png')">📥 PNG</button>
                     <button type="button" class="btn btn-outline btn-sm" onclick="downloadQr('svg')">📥 SVG</button>
+                    <button type="button" class="btn btn-outline btn-sm" onclick="printQrSticker()">🖨️ Print Sticker</button>
+                    <button type="button" class="btn btn-primary btn-sm" onclick="closeQrStickerModal()">Done</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Focused Topic Search Modal -->
     <div id="focusedSearchModal" class="modal-overlay">
-        <div class="modal" style="max-width: 580px;">
+        <div class="modal-content" style="max-width: 580px;">
             <div class="modal-header">
                 <div class="modal-title">🎯 Focused Intelligence Topic Search</div>
                 <button type="button" class="modal-close" onclick="closeFocusedSearchModal()">&times;</button>
