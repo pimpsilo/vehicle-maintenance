@@ -45,6 +45,7 @@ def _enrich_vehicle_read(v: Vehicle) -> VehicleRead:
         created_at=v.created_at,
         updated_at=v.updated_at,
         has_photo=bool(v.photo_data),
+        photo_url=v.photo_url,
     )
 
 @router.get("", response_model=List[VehicleRead])

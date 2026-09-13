@@ -208,6 +208,40 @@
             background: #e2e8f0;
             flex-shrink: 0;
             box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+            display: block;
+            transition: opacity 0.15s ease;
+        }
+        .vehicle-photo:hover {
+            opacity: 0.92;
+        }
+        .vehicle-photo-wrapper {
+            position: relative;
+            width: 100px;
+            height: 80px;
+            flex-shrink: 0;
+        }
+        .vehicle-photo-badge {
+            position: absolute;
+            bottom: -4px;
+            right: -4px;
+            background: var(--primary);
+            color: #ffffff;
+            border-radius: 50%;
+            width: 24px;
+            height: 24px;
+            font-size: 0.7rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.25);
+            border: 2px solid #ffffff;
+            transition: transform 0.15s ease, background-color 0.15s ease;
+            z-index: 2;
+        }
+        .vehicle-photo-badge:hover {
+            transform: scale(1.12);
+            background: var(--primary-hover, #1d4ed8);
         }
         .vehicle-silhouette {
             width: 100px;
@@ -613,19 +647,27 @@
                     <!-- Card Top Banner -->
                     <div class="vehicle-card-top">
                         <!-- Vehicle Photo or Silhouette -->
-                        {% if s.vehicle.photo_url %}
-                        <img src="{{ s.vehicle.photo_url }}" alt="{{ s.vehicle.year }} {{ s.vehicle.make }} {{ s.vehicle.model }}" class="vehicle-photo">
-                        {% else %}
-                        <div class="vehicle-silhouette">
-                            <svg width="48" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
-                                <path d="M19 17h2c.6 0 1-.4 1-1v-3c0-.9-.7-1.7-1.5-1.9C18.7 10.6 16 10 16 10s-1.3-1.4-2.2-2.3c-.5-.4-1.1-.7-1.8-.7H5c-.6 0-1.1.4-1.4.9l-1.4 2.9A3.7 3.7 0 0 0 2 12v4c0 .6.4 1 1 1h2" />
-                                <circle cx="7" cy="17" r="2" />
-                                <path d="M9 17h6" />
-                                <circle cx="17" cy="17" r="2" />
-                            </svg>
-                            <span style="font-size: 0.65rem; font-weight: 700; margin-top: 2px;">{{ s.vehicle.make }}</span>
+                        <div class="vehicle-photo-wrapper">
+                            <a href="/dashboard?vehicle_id={{ s.vehicle.id }}" title="Open {{ s.vehicle.year }} {{ s.vehicle.make }} {{ s.vehicle.model }} Dashboard">
+                                {% if s.vehicle.photo_data or s.vehicle.photo_url %}
+                                <img src="/api/v1/vehicles/{{ s.vehicle.id }}/photo" alt="{{ s.vehicle.year }} {{ s.vehicle.make }} {{ s.vehicle.model }}" class="vehicle-photo" loading="lazy">
+                                {% else %}
+                                <div class="vehicle-silhouette">
+                                    <svg width="48" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+                                        <path d="M19 17h2c.6 0 1-.4 1-1v-3c0-.9-.7-1.7-1.5-1.9C18.7 10.6 16 10 16 10s-1.3-1.4-2.2-2.3c-.5-.4-1.1-.7-1.8-.7H5c-.6 0-1.1.4-1.4.9l-1.4 2.9A3.7 3.7 0 0 0 2 12v4c0 .6.4 1 1 1h2" />
+                                        <circle cx="7" cy="17" r="2" />
+                                        <path d="M9 17h6" />
+                                        <circle cx="17" cy="17" r="2" />
+                                    </svg>
+                                    <span style="font-size: 0.65rem; font-weight: 700; margin-top: 2px;">{{ s.vehicle.make }}</span>
+                                </div>
+                                {% endif %}
+                            </a>
+                            <label class="vehicle-photo-badge" title="Upload/Change Photo">
+                                📷
+                                <input type="file" style="display: none;" accept="image/*" onchange="uploadVehiclePhoto({{ s.vehicle.id }}, this)">
+                            </label>
                         </div>
-                        {% endif %}
 
                         <!-- Vehicle Identity -->
                         <div class="vehicle-info">
@@ -793,6 +835,10 @@
                         <input type="text" name="license_plate" class="form-control" placeholder="e.g. 7XYZ890">
                     </div>
                 </div>
+                <div class="form-group">
+                    <label>📷 Vehicle Photo (Optional - JPG, PNG, WEBP)</label>
+                    <input type="file" name="photo" class="form-control" accept="image/*">
+                </div>
                 <div class="modal-actions">
                     <button type="button" class="btn btn-outline" onclick="closeAddVehicleModal()">Cancel</button>
                     <button type="submit" class="btn btn-primary">Create & Run Auto-Discovery</button>
@@ -889,6 +935,15 @@
 
                 if (res.ok) {
                     const v = await res.json();
+                    // upload vehicle photo if selected
+                    const photoInput = form.photo;
+                    if (photoInput && photoInput.files && photoInput.files[0]) {
+                        try {
+                            const fd = new FormData();
+                            fd.append('file', photoInput.files[0]);
+                            await fetch(`/api/v1/vehicles/${v.id}/photo`, { method: 'POST', body: fd });
+                        } catch (_) {}
+                    }
                     // trigger auto-discover in background
                     try {
                         await fetch(`/api/v1/vehicles/${v.id}/auto-discover`, { method: 'POST' });
@@ -904,6 +959,26 @@
                 }
             } catch (err) {
                 alert('Error creating vehicle: ' + err.message);
+            }
+        }
+
+        /* --- Vehicle Photo Upload --- */
+        async function uploadVehiclePhoto(vehicleId, input) {
+            if (!input.files || input.files.length === 0) return;
+            const fd = new FormData();
+            fd.append('file', input.files[0]);
+            showToast('Uploading vehicle photo...');
+            try {
+                const res = await fetch(`/api/v1/vehicles/${vehicleId}/photo`, { method: 'POST', body: fd });
+                if (res.ok) {
+                    showToast('Vehicle photo saved!');
+                    setTimeout(() => window.location.reload(), 800);
+                } else {
+                    const err = await res.json();
+                    alert(err.detail || 'Failed to upload vehicle photo');
+                }
+            } catch (err) {
+                alert('Error uploading photo: ' + err.message);
             }
         }
     </script>

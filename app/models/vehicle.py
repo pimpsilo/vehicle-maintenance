@@ -35,6 +35,16 @@ class Vehicle(VehicleBase, table=True):
     knowledge_records: List["VehicleKnowledge"] = Relationship(back_populates="vehicle", cascade_delete=True)
     odometer_entries: List["OdometerEntry"] = Relationship(back_populates="vehicle", cascade_delete=True)
 
+    @property
+    def photo_url(self) -> Optional[str]:
+        if self.id and self.photo_data:
+            return f"/api/v1/vehicles/{self.id}/photo"
+        return None
+
+    @property
+    def has_photo(self) -> bool:
+        return bool(self.photo_data)
+
 class VehicleCreate(VehicleBase):
     pass
 
@@ -43,6 +53,7 @@ class VehicleRead(VehicleBase):
     created_at: datetime
     updated_at: datetime
     has_photo: bool = False
+    photo_url: Optional[str] = None
 
 class VehicleUpdate(SQLModel):
     vin: Optional[str] = None

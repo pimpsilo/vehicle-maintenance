@@ -69,3 +69,32 @@ def test_fleet_landing_empty_state(client: TestClient):
     res = client.get("/fleet")
     assert res.status_code == 200
     assert "VehicleOps Tracker" in res.text
+
+def test_fleet_landing_vehicle_thumbnails(client: TestClient, session: Session):
+    v_photo = Vehicle(
+        vin="1HGCR2F83HA999999",
+        year=2021,
+        make="Toyota",
+        model="Camry",
+        current_mileage=20000,
+        photo_data=b"\xff\xd8\xff\xe0mockjpegdata",
+        photo_content_type="image/jpeg",
+        photo_filename="camry.jpg"
+    )
+    v_no_photo = Vehicle(
+        vin="1HGCR2F83HA888888",
+        year=2020,
+        make="Ford",
+        model="F-150",
+        current_mileage=40000
+    )
+    session.add_all([v_photo, v_no_photo])
+    session.commit()
+    session.refresh(v_photo)
+    session.refresh(v_no_photo)
+
+    res = client.get("/dashboard")
+    assert res.status_code == 200
+    assert f'<img src="/api/v1/vehicles/{v_photo.id}/photo"' in res.text
+    assert f'alt="{v_photo.year} {v_photo.make} {v_photo.model}" class="vehicle-photo"' in res.text
+    assert f"card-vehicle-{v_no_photo.id}" in res.text
