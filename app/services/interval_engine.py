@@ -30,7 +30,42 @@ class MaintenanceIntervalEngine:
         if not vehicle:
             return []
 
-        service_defs = session.exec(select(ServiceDefinition)).all()
+        # 1. Fetch service definitions: vehicle-specific definitions override global definitions
+        all_defs = session.exec(
+            select(ServiceDefinition).where(
+                (ServiceDefinition.vehicle_id == vehicle_id) | (ServiceDefinition.vehicle_id == None)  # noqa: E711
+            )
+        ).all()
+
+        vehicle_specific_defs = [d for d in all_defs if d.vehicle_id == vehicle_id]
+        global_defs = [d for d in all_defs if d.vehicle_id is None]
+
+        active_defs = []
+        seen_service_keys = set()
+
+        # Prioritize vehicle-specific definitions
+        for sdef in vehicle_specific_defs:
+            norm_name = sdef.service_name.strip().lower()
+            active_defs.append(sdef)
+            seen_service_keys.add(norm_name)
+            # Also key by category for lubrication
+            if sdef.category == "LUBRICATION" or "oil" in norm_name:
+                seen_service_keys.add("oil_service")
+
+        # Fallback to deduplicated global definitions
+        for sdef in global_defs:
+            norm_name = sdef.service_name.strip().lower()
+            is_oil = sdef.category == "LUBRICATION" or "oil" in norm_name
+            if is_oil and "oil_service" in seen_service_keys:
+                continue
+            if norm_name in seen_service_keys:
+                continue
+
+            active_defs.append(sdef)
+            seen_service_keys.add(norm_name)
+            if is_oil:
+                seen_service_keys.add("oil_service")
+
         forecasts = []
 
         current_dt = datetime.combine(current_date, datetime.min.time(), tzinfo=timezone.utc)
@@ -57,17 +92,32 @@ class MaintenanceIntervalEngine:
                 1,
             )
 
-        for sdef in service_defs:
-            # Query the latest service record for this service definition and vehicle
-            stmt = (
-                select(ServiceRecord)
-                .where(
-                    ServiceRecord.vehicle_id == vehicle_id,
-                    ServiceRecord.service_definition_id == sdef.id,
-                )
-                .order_by(ServiceRecord.completed_date.desc(), ServiceRecord.completed_mileage.desc())
-            )
-            latest_record = session.exec(stmt).first()
+        # Pre-fetch all service records for this vehicle once
+        all_vehicle_records = session.exec(
+            select(ServiceRecord)
+            .where(ServiceRecord.vehicle_id == vehicle_id)
+            .order_by(ServiceRecord.completed_date.desc(), ServiceRecord.completed_mileage.desc())
+        ).all()
+
+        for sdef in active_defs:
+            sdef_norm = sdef.service_name.strip().lower()
+            is_oil = sdef.category == "LUBRICATION" or "oil" in sdef_norm
+
+            # Match records:
+            # 1. Exact foreign key match
+            # 2. Or unlinked / sibling record with matching service_name or oil keyword
+            matching_records = []
+            for r in all_vehicle_records:
+                if r.service_definition_id == sdef.id:
+                    matching_records.append(r)
+                elif r.service_definition_id is None:
+                    r_norm = r.service_name.strip().lower()
+                    if is_oil and "oil" in r_norm:
+                        matching_records.append(r)
+                    elif r_norm == sdef_norm:
+                        matching_records.append(r)
+
+            latest_record = matching_records[0] if matching_records else None
 
             if latest_record:
                 last_date = latest_record.completed_date
@@ -84,9 +134,32 @@ class MaintenanceIntervalEngine:
             miles_remaining = next_due_mileage - vehicle.current_mileage
             days_remaining = (next_due_date - current_date).days
 
+            # Interval Progress calculation (% consumed)
+            if sdef.interval_miles > 0:
+                used_miles = vehicle.current_mileage - last_mileage
+                mileage_progress_pct = round(min(100.0, max(0.0, (used_miles / sdef.interval_miles) * 100.0)), 1)
+            else:
+                mileage_progress_pct = 0.0
+
+            if approx_days_in_interval > 0:
+                elapsed_days = (current_date - last_date).days
+                time_progress_pct = round(min(100.0, max(0.0, (elapsed_days / approx_days_in_interval) * 100.0)), 1)
+            else:
+                time_progress_pct = 0.0
+
             # Projection by daily mileage accrual
             projected_days_by_mileage = int(miles_remaining / daily_mileage_rate)
             projected_due_date = current_date + timedelta(days=max(0, projected_days_by_mileage))
+
+            # Dominant threshold determination
+            if miles_remaining <= 0 and days_remaining > 0:
+                dominant_threshold = "MILEAGE"
+            elif days_remaining <= 0 and miles_remaining > 0:
+                dominant_threshold = "CALENDAR"
+            elif projected_days_by_mileage <= days_remaining:
+                dominant_threshold = "MILEAGE"
+            else:
+                dominant_threshold = "CALENDAR"
 
             # Status determination
             if miles_remaining <= 0 or days_remaining <= 0:
@@ -133,10 +206,19 @@ class MaintenanceIntervalEngine:
                 accrual_rate_mpd=round(daily_mileage_rate, 2),
                 rate_delta_pct=rate_delta_pct,
                 approaching_faster=approaching_faster,
+                mileage_progress_pct=mileage_progress_pct,
+                time_progress_pct=time_progress_pct,
+                dominant_threshold=dominant_threshold,
             )
             forecasts.append(forecast)
 
         # Sort with OVERDUE first, then DUE_SOON, then OK
         status_priority = {ServiceStatus.OVERDUE: 0, ServiceStatus.DUE_SOON: 1, ServiceStatus.OK: 2}
         forecasts.sort(key=lambda f: (status_priority[f.status], f.miles_remaining))
+
+        # Assign urgency ranking and flag immediate next required service
+        for idx, f in enumerate(forecasts):
+            f.urgency_rank = idx + 1
+            f.is_next_required = (idx == 0)
+
         return forecasts

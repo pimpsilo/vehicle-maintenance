@@ -14,8 +14,12 @@ from app.models.maintenance import (
     MaintenanceAcknowledgeRequest,
     MaintenanceForecast,
     PerformedByType,
+    ServiceStatus,
+    VehicleOilConfigRequest,
+    VehicleOilConfigRead,
 )
 from app.models.vehicle import Vehicle
+from app.models.consumable import ConsumableSpecification
 from app.services.interval_engine import MaintenanceIntervalEngine
 from app.services.attachment_service import AttachmentService
 
@@ -64,6 +68,143 @@ def get_maintenance_forecast(
         raise HTTPException(status_code=404, detail="Vehicle not found.")
     
     return MaintenanceIntervalEngine.calculate_forecasts(session, vehicle_id=vehicle_id)
+
+@router.get("/fleet-next-due")
+def get_fleet_next_due(session: Session = Depends(get_session)):
+    vehicles = session.exec(select(Vehicle).order_by(Vehicle.id.asc())).all()
+    results = []
+    for v in vehicles:
+        forecasts = MaintenanceIntervalEngine.calculate_forecasts(session, vehicle_id=v.id)
+        next_req = next((f for f in forecasts if f.is_next_required), None)
+        oil_f = next((f for f in forecasts if "oil" in f.service_name.lower()), None)
+        results.append({
+            "vehicle_id": v.id,
+            "vehicle_name": f"{v.year} {v.make} {v.model} {v.trim or ''}".strip(),
+            "current_mileage": v.current_mileage,
+            "next_required": next_req,
+            "oil_change": oil_f,
+        })
+    return results
+
+@router.get("/vehicle/{vehicle_id}/oil-config", response_model=VehicleOilConfigRead)
+def get_vehicle_oil_config(vehicle_id: int, session: Session = Depends(get_session)):
+    vehicle = session.get(Vehicle, vehicle_id)
+    if not vehicle:
+        raise HTTPException(status_code=404, detail="Vehicle not found.")
+
+    consumables = session.exec(
+        select(ConsumableSpecification).where(ConsumableSpecification.vehicle_id == vehicle_id)
+    ).all()
+    oil_spec = next((c for c in consumables if "oil" in c.item_name.lower() and "filter" not in c.item_name.lower()), None)
+
+    forecasts = MaintenanceIntervalEngine.calculate_forecasts(session, vehicle_id=vehicle_id)
+    oil_forecast = next((f for f in forecasts if "oil" in f.service_name.lower()), None)
+
+    vehicle_name = f"{vehicle.year} {vehicle.make} {vehicle.model} {vehicle.trim or ''}".strip()
+
+    if oil_forecast:
+        return VehicleOilConfigRead(
+            vehicle_id=vehicle.id,
+            vehicle_name=vehicle_name,
+            current_mileage=vehicle.current_mileage,
+            service_definition_id=oil_forecast.service_definition_id,
+            service_name=oil_forecast.service_name,
+            interval_miles=oil_forecast.interval_miles,
+            interval_months=oil_forecast.interval_months,
+            last_completed_date=oil_forecast.last_completed_date,
+            last_completed_mileage=oil_forecast.last_completed_mileage,
+            next_due_mileage=oil_forecast.next_due_mileage,
+            next_due_date=oil_forecast.next_due_date,
+            projected_due_date_by_mileage=oil_forecast.projected_due_date_by_mileage,
+            miles_remaining=oil_forecast.miles_remaining,
+            days_remaining=oil_forecast.days_remaining,
+            status=oil_forecast.status,
+            mileage_progress_pct=oil_forecast.mileage_progress_pct,
+            time_progress_pct=oil_forecast.time_progress_pct,
+            oil_specification=oil_spec.specification if oil_spec else None,
+            oil_part_number=oil_spec.oem_part_number if oil_spec else None,
+            notes=oil_forecast.action_summary,
+        )
+    else:
+        return VehicleOilConfigRead(
+            vehicle_id=vehicle.id,
+            vehicle_name=vehicle_name,
+            current_mileage=vehicle.current_mileage,
+            service_name="Engine Oil & Filter Change",
+            interval_miles=10000,
+            interval_months=12,
+            next_due_mileage=vehicle.current_mileage + 10000,
+            next_due_date=date.today(),
+            projected_due_date_by_mileage=date.today(),
+            miles_remaining=10000,
+            days_remaining=365,
+            status=ServiceStatus.OK,
+            mileage_progress_pct=0.0,
+            time_progress_pct=0.0,
+            oil_specification=oil_spec.specification if oil_spec else None,
+            oil_part_number=oil_spec.oem_part_number if oil_spec else None,
+        )
+
+@router.post("/vehicle/{vehicle_id}/oil-config", response_model=VehicleOilConfigRead)
+def update_vehicle_oil_config(
+    vehicle_id: int,
+    payload: VehicleOilConfigRequest,
+    session: Session = Depends(get_session)
+):
+    vehicle = session.get(Vehicle, vehicle_id)
+    if not vehicle:
+        raise HTTPException(status_code=404, detail="Vehicle not found.")
+
+    existing_defs = session.exec(
+        select(ServiceDefinition)
+        .where(ServiceDefinition.vehicle_id == vehicle_id)
+        .where(ServiceDefinition.category == "LUBRICATION")
+    ).all()
+    if not existing_defs:
+        existing_defs = [
+            d for d in session.exec(select(ServiceDefinition).where(ServiceDefinition.vehicle_id == vehicle_id)).all()
+            if "oil" in d.service_name.lower()
+        ]
+
+    if existing_defs:
+        sdef = existing_defs[0]
+        if payload.interval_miles:
+            sdef.interval_miles = payload.interval_miles
+        if payload.interval_months:
+            sdef.interval_months = payload.interval_months
+        if payload.service_name:
+            sdef.service_name = payload.service_name
+    else:
+        sdef = ServiceDefinition(
+            vehicle_id=vehicle_id,
+            service_name=payload.service_name or "Engine Oil & Filter Change",
+            interval_miles=payload.interval_miles or 7500,
+            interval_months=payload.interval_months or 12,
+            category="LUBRICATION",
+            is_recurring=True,
+        )
+    session.add(sdef)
+    session.commit()
+    session.refresh(sdef)
+
+    if payload.completed_date or payload.completed_mileage is not None:
+        comp_date = payload.completed_date or date.today()
+        comp_mileage = payload.completed_mileage if payload.completed_mileage is not None else vehicle.current_mileage
+        
+        record = ServiceRecord(
+            vehicle_id=vehicle.id,
+            service_definition_id=sdef.id,
+            service_name=sdef.service_name,
+            completed_date=comp_date,
+            completed_mileage=comp_mileage,
+            performed_by_type=PerformedByType.DIY,
+            total_cost=payload.total_cost or 0.0,
+            notes=payload.notes or "Updated oil change baseline"
+        )
+        session.add(record)
+        session.commit()
+
+    return get_vehicle_oil_config(vehicle_id=vehicle_id, session=session)
 
 @router.post("/acknowledge", response_model=ServiceRecordRead, status_code=201)
 def acknowledge_maintenance_item(

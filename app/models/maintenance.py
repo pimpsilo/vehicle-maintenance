@@ -15,6 +15,7 @@ class ServiceStatus(str, Enum):
     OVERDUE = "OVERDUE"    # past mileage or past calendar date
 
 class ServiceDefinitionBase(SQLModel):
+    vehicle_id: Optional[int] = Field(default=None, foreign_key="vehicles.id", index=True)
     service_name: str = Field(index=True)
     description: Optional[str] = None
     interval_miles: int = Field(default=5000, ge=500)
@@ -112,3 +113,40 @@ class MaintenanceForecast(SQLModel):
     accrual_rate_mpd: float = 0.0
     rate_delta_pct: Optional[float] = None
     approaching_faster: bool = False
+    is_next_required: bool = False
+    urgency_rank: int = 999
+    mileage_progress_pct: float = 0.0
+    time_progress_pct: float = 0.0
+    dominant_threshold: str = "MILEAGE"
+
+class VehicleOilConfigRequest(SQLModel):
+    vehicle_id: int
+    completed_date: Optional[date] = None
+    completed_mileage: Optional[int] = None
+    interval_miles: Optional[int] = Field(default=None, ge=500)
+    interval_months: Optional[int] = Field(default=None, ge=1)
+    service_name: Optional[str] = "Engine Oil & Filter Change"
+    total_cost: Optional[float] = 0.0
+    notes: Optional[str] = None
+
+class VehicleOilConfigRead(SQLModel):
+    vehicle_id: int
+    vehicle_name: str
+    current_mileage: int
+    service_definition_id: Optional[int] = None
+    service_name: str
+    interval_miles: int
+    interval_months: int
+    last_completed_date: Optional[date] = None
+    last_completed_mileage: Optional[int] = None
+    next_due_mileage: int
+    next_due_date: date
+    projected_due_date_by_mileage: date
+    miles_remaining: int
+    days_remaining: int
+    status: ServiceStatus
+    mileage_progress_pct: float
+    time_progress_pct: float
+    oil_specification: Optional[str] = None
+    oil_part_number: Optional[str] = None
+    notes: Optional[str] = None

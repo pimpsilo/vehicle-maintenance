@@ -40,6 +40,12 @@ def init_db() -> None:
                 _add_column_if_missing(cursor, tbl, "file_content_type", "VARCHAR")
                 _add_column_if_missing(cursor, tbl, "file_size", "INTEGER")
 
+            # 3. service_definitions vehicle_id migration
+            _add_column_if_missing(cursor, "service_definitions", "vehicle_id", "INTEGER")
+
+            # 4. notification_records severity migration
+            _add_column_if_missing(cursor, "notification_records", "severity", "VARCHAR DEFAULT 'INFO'")
+
             conn.connection.commit()
             cursor.close()
     except Exception:
