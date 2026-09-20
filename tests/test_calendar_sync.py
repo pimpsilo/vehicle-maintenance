@@ -99,4 +99,35 @@ def test_calendar_status_and_bulk_sync(client: TestClient, sample_vehicle: Vehic
     assert bulk_res.status_code == 200
     bulk_data = bulk_res.json()
     assert "total_synced" in bulk_data
+    assert "synced_maintenance" in bulk_data
+
+def test_maintenance_due_calendar_sync(session: Session, sample_vehicle: Vehicle):
+    today = date.today()
+    from app.models.maintenance import MaintenanceForecast, ServiceStatus
+
+    forecast = MaintenanceForecast(
+        service_definition_id=1,
+        service_name="Engine Oil & Filter Change",
+        interval_miles=10000,
+        interval_months=12,
+        last_completed_mileage=190000,
+        last_completed_date=today - timedelta(days=300),
+        current_mileage=sample_vehicle.current_mileage,
+        next_due_mileage=200000,
+        next_due_date=today + timedelta(days=20),
+        projected_due_date_by_mileage=today + timedelta(days=20),
+        miles_remaining=400,
+        days_remaining=20,
+        status=ServiceStatus.DUE_SOON,
+        action_summary="Due in 400 miles",
+    )
+
+    payload = GoogleCalendarService.build_maintenance_due_event(sample_vehicle, forecast)
+    assert "Maintenance Due" in payload.summary
+    assert "Engine Oil & Filter Change" in payload.summary
+    assert payload.is_all_day is True
+    assert len(payload.reminder_overrides) == 2
+    assert any(r.minutes == 14 * 24 * 60 for r in payload.reminder_overrides)
+    assert any(r.minutes == 2 * 24 * 60 for r in payload.reminder_overrides)
+
 

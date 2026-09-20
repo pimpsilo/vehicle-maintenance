@@ -11,6 +11,7 @@ from app.models.maintenance import ServiceStatus
 from app.services.document_service import DocumentService
 from app.services.interval_engine import MaintenanceIntervalEngine
 from app.services.notification_srv import NotificationService
+from app.services.maintenance_alert_srv import MaintenanceAlertService
 from app.services.gcal_service import GoogleCalendarService
 
 logger = logging.getLogger(__name__)
@@ -29,12 +30,15 @@ def _execute_checks(session: Session):
             if doc.status == DocumentStatus.EXPIRED:
                 title = f"EXPIRED: {vehicle.year} {vehicle.model} {doc_name}"
                 msg = f"Your {doc_name} (#{doc.document_number}) expired on {doc.expiration_date.strftime('%b %d, %Y')}."
+                sev = "CRITICAL"
             elif doc.status == DocumentStatus.EXPIRING_CRITICAL:
                 title = f"CRITICAL: {vehicle.year} {vehicle.model} {doc_name} Expiring"
                 msg = f"Your {doc_name} (#{doc.document_number}) expires in {doc.days_until_expiration} days!"
+                sev = "CRITICAL"
             else:
                 title = f"Renewal Alert: {vehicle.year} {vehicle.model} {doc_name}"
                 msg = f"Your {doc_name} (#{doc.document_number}) is due for renewal in {doc.days_until_expiration} days."
+                sev = "WARNING"
 
             NotificationService.notify(
                 session=session,
@@ -43,37 +47,11 @@ def _execute_checks(session: Session):
                 event_type="DOCUMENT_EXPIRATION",
                 vehicle_id=vehicle.id,
                 entity_id=doc.id,
+                severity=sev,
             )
 
-        # 2. Maintenance Intervals
-        forecasts = MaintenanceIntervalEngine.calculate_forecasts(session, vehicle_id=vehicle.id, current_date=today)
-        for f in forecasts:
-            if f.status in (ServiceStatus.OVERDUE, ServiceStatus.DUE_SOON):
-                title = f"Service Alert: {vehicle.year} {vehicle.model} - {f.service_name}"
-                NotificationService.notify(
-                    session=session,
-                    title=title,
-                    message=f.action_summary,
-                    event_type="MAINTENANCE_DUE",
-                    vehicle_id=vehicle.id,
-                    entity_id=f.service_definition_id,
-                )
-            elif f.approaching_faster:
-                days_until_projected = (f.projected_due_date_by_mileage - today).days
-                days_until_calendar = (f.next_due_date - today).days
-                if (
-                    days_until_projected <= settings.maintenance_due_soon_days
-                    and days_until_calendar > settings.maintenance_due_soon_days
-                ):
-                    title = f"Driving Pace Surge: {vehicle.year} {vehicle.model} - {f.service_name}"
-                    NotificationService.notify(
-                        session=session,
-                        title=title,
-                        message=f.action_summary,
-                        event_type="RATE_SURGE",
-                        vehicle_id=vehicle.id,
-                        entity_id=f.service_definition_id,
-                    )
+    # 2. Planned Maintenance Alerts (All Tiers: Overdue, Due Soon, Advance Notice, Pace Surge)
+    MaintenanceAlertService.evaluate_all_fleet_alerts(session, current_date=today)
 
     # 3. Google Calendar Synchronization
     try:

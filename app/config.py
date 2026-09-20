@@ -56,6 +56,10 @@ class Settings(BaseModel):
     document_critical_lead_days: int = 7
     maintenance_due_soon_miles: int = 500
     maintenance_due_soon_days: int = 30
+    maintenance_advance_notice_miles: int = int(os.getenv("MAINTENANCE_ADVANCE_NOTICE_MILES", "1000"))
+    maintenance_advance_notice_days: int = int(os.getenv("MAINTENANCE_ADVANCE_NOTICE_DAYS", "45"))
+    maintenance_advance_notice_pct: float = float(os.getenv("MAINTENANCE_ADVANCE_NOTICE_PCT", "80.0"))
+    maintenance_alert_cooldown_hours: int = int(os.getenv("MAINTENANCE_ALERT_COOLDOWN_HOURS", "24"))
 
     # Odometer Usage & Rate Surge Forecasting Settings
     usage_observation_window_days: int = int(os.getenv("USAGE_OBSERVATION_WINDOW_DAYS", "90"))

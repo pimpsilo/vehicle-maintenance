@@ -25,6 +25,7 @@ from app.services.qr_service import QRService
 from app.services.nhtsa_service import NHTSAService
 from app.services.fleet_intelligence import FleetIntelligenceService
 from app.services.usage_service import UsageService
+from app.services.maintenance_alert_srv import MaintenanceAlertService
 
 router = APIRouter(prefix="/api/v1/vehicles", tags=["Vehicles"])
 
@@ -194,6 +195,13 @@ def update_odometer(vehicle_id: int, payload: OdometerUpdate, session: Session =
     session.add(entry)
     session.commit()
     session.refresh(vehicle)
+
+    # Real-time alert check upon odometer change
+    try:
+        MaintenanceAlertService.evaluate_vehicle_alerts(session, vehicle.id)
+    except Exception:
+        pass
+
     return _enrich_vehicle_read(vehicle)
 
 @router.get("/{vehicle_id}/odometer/history", response_model=List[OdometerEntryRead])

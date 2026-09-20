@@ -428,8 +428,33 @@
     <!-- Maintenance Due Forecast -->
     <div class="card">
         <h2>🛠️ Scheduled Maintenance Status</h2>
+
+        {% if forecasts and forecasts|length > 0 and forecasts[0].is_next_required %}
+        <!-- Next Due Hero Banner on Mobile -->
+        <div style="background: {% if forecasts[0].status.value == 'OVERDUE' %}#fef2f2; border: 1px solid #fecaca;{% elif forecasts[0].status.value == 'DUE_SOON' %}#fffbeb; border: 1px solid #fde68a;{% else %}#f0fdf4; border: 1px solid #bbf7d0;{% endif %} border-radius: 10px; padding: 12px 14px; margin-bottom: 14px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                <span style="font-weight: 700; font-size: 0.92rem; color: {% if forecasts[0].status.value == 'OVERDUE' %}#991b1b{% elif forecasts[0].status.value == 'DUE_SOON' %}#92400e{% else %}#065f46{% endif %};">
+                    ⏱️ Next Required: {{ forecasts[0].service_name }}
+                </span>
+                <span class="status-tag {% if forecasts[0].status.value == 'OVERDUE' %}tag-overdue{% elif forecasts[0].status.value == 'DUE_SOON' %}tag-due{% else %}tag-ok{% endif %}">
+                    {{ forecasts[0].status.value }}
+                </span>
+            </div>
+            <div style="font-size: 0.82rem; color: #475569; margin-bottom: 8px;">
+                Due at <strong>{{ "{:,}".format(forecasts[0].next_due_mileage) }} mi</strong> ({{ "{:,}".format(forecasts[0].miles_remaining) }} mi left) • ~{{ forecasts[0].next_due_date.strftime('%b %d, %Y') }} ({{ forecasts[0].days_remaining }}d)
+            </div>
+            <div style="width: 100%; height: 6px; background: #e2e8f0; border-radius: 999px; overflow: hidden;">
+                <div style="height: 100%; width: {{ forecasts[0].mileage_progress_pct }}%; background: {% if forecasts[0].status.value == 'OVERDUE' %}#ef4444{% elif forecasts[0].status.value == 'DUE_SOON' %}#f59e0b{% else %}#10b981{% endif %}; border-radius: 999px;"></div>
+            </div>
+            <div style="display: flex; justify-content: space-between; font-size: 0.72rem; color: #64748b; margin-top: 4px;">
+                <span>{{ forecasts[0].mileage_progress_pct }}% interval used</span>
+                <span>Pace: {{ forecasts[0].dominant_threshold|lower }}</span>
+            </div>
+        </div>
+        {% endif %}
+
         {% for f in forecasts %}
-        <div class="service-row">
+        <div class="service-row" {% if f.is_next_required %}style="background: #f8fafc; border-left: 3px solid #10b981; padding-left: 10px;"{% endif %}>
             {% if f.status.value == 'OVERDUE' %}
             <span class="status-tag tag-overdue">OVERDUE</span>
             {% elif f.status.value == 'DUE_SOON' %}
@@ -437,8 +462,14 @@
             {% else %}
             <span class="status-tag tag-ok">OK</span>
             {% endif %}
-            <div style="font-weight: 600; font-size: 0.95rem;">{{ f.service_name }}</div>
+            <div style="font-weight: 600; font-size: 0.95rem;">
+                {{ f.service_name }}
+                {% if f.is_next_required %}<span style="font-size: 0.7rem; color: #10b981; font-weight: 700; margin-left: 4px;">[NEXT DUE]</span>{% endif %}
+            </div>
             <div style="font-size: 0.8rem; color: #64748b;">{{ f.action_summary }}</div>
+            <div style="width: 100%; height: 4px; background: #e2e8f0; border-radius: 999px; overflow: hidden; margin-top: 4px;">
+                <div style="height: 100%; width: {{ f.mileage_progress_pct }}%; background: {% if f.status.value == 'OVERDUE' %}#ef4444{% elif f.status.value == 'DUE_SOON' %}#f59e0b{% else %}#10b981{% endif %};"></div>
+            </div>
         </div>
         {% else %}
         <p style="color: #64748b; font-size: 0.9rem;">No maintenance definitions found.</p>

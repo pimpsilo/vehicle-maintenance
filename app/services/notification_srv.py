@@ -38,23 +38,26 @@ class NotificationService:
         session: Session,
         event_type: str,
         entity_id: Optional[int],
-        cooldown_hours: int = None
+        vehicle_id: Optional[int] = None,
+        cooldown_hours: Optional[int] = None
     ) -> bool:
         """
-        Checks if a notification for this event/entity was already sent within the cooldown window.
+        Checks if a notification for this event/entity (and vehicle) was already sent within the cooldown window.
         """
         if cooldown_hours is None:
             cooldown_hours = settings.notification_cooldown_hours
 
         cutoff = get_utc_now() - timedelta(hours=cooldown_hours)
-        stmt = (
-            select(NotificationRecord)
-            .where(
-                NotificationRecord.event_type == event_type,
-                NotificationRecord.entity_id == entity_id,
-                NotificationRecord.created_at >= cutoff,
-            )
-        )
+        conditions = [
+            NotificationRecord.event_type == event_type,
+            NotificationRecord.created_at >= cutoff,
+        ]
+        if entity_id is not None:
+            conditions.append(NotificationRecord.entity_id == entity_id)
+        if vehicle_id is not None:
+            conditions.append(NotificationRecord.vehicle_id == vehicle_id)
+
+        stmt = select(NotificationRecord).where(*conditions)
         existing = session.exec(stmt).first()
         return existing is not None
 
@@ -67,12 +70,16 @@ class NotificationService:
         vehicle_id: Optional[int] = None,
         entity_id: Optional[int] = None,
         channel: NotificationChannel = NotificationChannel.LOCAL_DESKTOP,
+        severity: str = "INFO",
         bypass_cooldown: bool = False,
+        cooldown_hours: Optional[int] = None,
     ) -> Optional[NotificationRecord]:
         """
         Sends notification and logs it in the database if not suppressed by cooldown.
         """
-        if not bypass_cooldown and NotificationService.should_suppress_notification(session, event_type, entity_id):
+        if not bypass_cooldown and NotificationService.should_suppress_notification(
+            session, event_type, entity_id, vehicle_id=vehicle_id, cooldown_hours=cooldown_hours
+        ):
             return None
 
         delivered = True
@@ -90,6 +97,7 @@ class NotificationService:
             title=title,
             message=message,
             channel=channel,
+            severity=severity,
             is_delivered=delivered,
             delivery_error=error_msg,
             created_at=get_utc_now(),

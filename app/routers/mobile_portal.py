@@ -12,6 +12,7 @@ from app.models.document import VehicleDocument
 from app.models.maintenance import ServiceRecord
 from app.services.document_service import DocumentService
 from app.services.interval_engine import MaintenanceIntervalEngine
+from app.services.maintenance_alert_srv import MaintenanceAlertService
 
 router = APIRouter(tags=["Mobile Vehicle Portal"])
 
@@ -119,6 +120,13 @@ def mobile_update_odometer(
     session.add(entry)
     session.commit()
     session.refresh(vehicle)
+
+    # Real-time alert check upon odometer change
+    try:
+        MaintenanceAlertService.evaluate_vehicle_alerts(session, vehicle.id)
+    except Exception:
+        pass
+
     return vehicle
 
 @router.post("/v/{vehicle_id}/quick-service")
@@ -147,4 +155,11 @@ def mobile_quick_service(
     session.add(record)
     session.commit()
     session.refresh(record)
+
+    # Re-evaluate alerts after recording service
+    try:
+        MaintenanceAlertService.evaluate_vehicle_alerts(session, vehicle.id)
+    except Exception:
+        pass
+
     return {"message": "Service record created successfully", "record_id": record.id}

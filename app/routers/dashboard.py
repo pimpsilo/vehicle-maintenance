@@ -18,6 +18,7 @@ from app.services.document_service import DocumentService
 from app.services.interval_engine import MaintenanceIntervalEngine
 from app.services.service_order import ServiceOrderService
 from app.services.usage_service import UsageService
+from app.services.maintenance_alert_srv import MaintenanceAlertService
 
 router = APIRouter(tags=["Web Dashboard"])
 
@@ -39,37 +40,60 @@ def render_dashboard(
         for v in vehicles:
             forecasts = MaintenanceIntervalEngine.calculate_forecasts(session, vehicle_id=v.id)
 
+            # Next required service across all definitions
+            next_required_service = next((f for f in forecasts if f.is_next_required), None)
+
             # Next oil change forecast
             oil_forecast = next((f for f in forecasts if "oil" in f.service_name.lower()), None)
             if oil_forecast:
                 if oil_forecast.status == ServiceStatus.OVERDUE:
-                    oil_status = {
-                        "status": "OVERDUE",
-                        "label": "OVERDUE",
-                        "badge_class": "event-badge-overdue",
-                        "text": f"Overdue by {abs(oil_forecast.miles_remaining):,} mi"
-                    }
+                    oil_badge_class = "event-badge-overdue"
+                    oil_label = "OVERDUE"
+                    oil_text = f"Overdue by {abs(oil_forecast.miles_remaining):,} mi"
                 elif oil_forecast.status == ServiceStatus.DUE_SOON:
-                    oil_status = {
-                        "status": "DUE_SOON",
-                        "label": "DUE SOON",
-                        "badge_class": "event-badge-soon",
-                        "text": f"Due in {oil_forecast.miles_remaining:,} mi"
-                    }
+                    oil_badge_class = "event-badge-soon"
+                    oil_label = "DUE SOON"
+                    oil_text = f"Due in {oil_forecast.miles_remaining:,} mi"
                 else:
+                    oil_badge_class = "health-good"
+                    oil_label = "OPTIMAL"
                     due_date_str = f" (~{oil_forecast.next_due_date.strftime('%b %Y')})" if oil_forecast.next_due_date else ""
-                    oil_status = {
-                        "status": "OK",
-                        "label": "OPTIMAL",
-                        "badge_class": "health-good",
-                        "text": f"{oil_forecast.miles_remaining:,} mi remaining{due_date_str}"
-                    }
+                    oil_text = f"{oil_forecast.miles_remaining:,} mi remaining{due_date_str}"
+
+                oil_status = {
+                    "status": oil_forecast.status.value,
+                    "label": oil_label,
+                    "badge_class": oil_badge_class,
+                    "text": oil_text,
+                    "interval_miles": oil_forecast.interval_miles,
+                    "interval_months": oil_forecast.interval_months,
+                    "miles_remaining": oil_forecast.miles_remaining,
+                    "days_remaining": oil_forecast.days_remaining,
+                    "mileage_progress_pct": oil_forecast.mileage_progress_pct,
+                    "time_progress_pct": oil_forecast.time_progress_pct,
+                    "next_due_mileage": oil_forecast.next_due_mileage,
+                    "next_due_date": oil_forecast.next_due_date.strftime("%b %d, %Y") if oil_forecast.next_due_date else "",
+                    "last_completed_date": oil_forecast.last_completed_date.strftime("%b %d, %Y") if oil_forecast.last_completed_date else "Not Recorded",
+                    "last_completed_mileage": oil_forecast.last_completed_mileage,
+                    "dominant_threshold": oil_forecast.dominant_threshold,
+                }
             else:
                 oil_status = {
                     "status": "NOT_CONFIGURED",
                     "label": "NOT SET",
                     "badge_class": "",
-                    "text": "No interval configured"
+                    "text": "No interval configured",
+                    "interval_miles": 5000,
+                    "interval_months": 6,
+                    "miles_remaining": 0,
+                    "days_remaining": 0,
+                    "mileage_progress_pct": 0.0,
+                    "time_progress_pct": 0.0,
+                    "next_due_mileage": v.current_mileage,
+                    "next_due_date": "",
+                    "last_completed_date": "Not Recorded",
+                    "last_completed_mileage": None,
+                    "dominant_threshold": "MILEAGE",
                 }
 
             # Gather urgent maintenance items
@@ -147,6 +171,7 @@ def render_dashboard(
             vehicle_summaries.append({
                 "vehicle": v,
                 "oil_status": oil_status,
+                "next_required_service": next_required_service,
                 "urgent_items": urgent_items,
                 "active_orders": active_orders,
                 "health_class": health_class,
@@ -154,11 +179,17 @@ def render_dashboard(
                 "usage_pace": usage_pace,
             })
 
+        fleet_alerts = MaintenanceAlertService.get_active_maintenance_alerts(session)
+
         fleet_stats = {
             "total_vehicles": len(vehicles),
             "total_mileage": sum(v.current_mileage for v in vehicles),
             "total_action_items": sum(len([i for i in s["urgent_items"] if i["severity"] in ("CRITICAL", "WARNING")]) for s in vehicle_summaries),
             "total_active_orders": sum(len(s["active_orders"]) for s in vehicle_summaries),
+            "total_alerts": len(fleet_alerts),
+            "critical_alerts": len([a for a in fleet_alerts if a.severity == "CRITICAL"]),
+            "warning_alerts": len([a for a in fleet_alerts if a.severity == "WARNING"]),
+            "info_alerts": len([a for a in fleet_alerts if a.severity == "INFO"]),
         }
 
         return templates.TemplateResponse(
@@ -168,6 +199,7 @@ def render_dashboard(
                 "vehicles": vehicles,
                 "vehicle_summaries": vehicle_summaries,
                 "fleet_stats": fleet_stats,
+                "fleet_alerts": fleet_alerts,
             }
         )
 
@@ -229,6 +261,7 @@ def render_dashboard(
 
     shops = session.exec(select(ServiceShop)).all()
     notifications = session.exec(select(NotificationRecord).order_by(NotificationRecord.created_at.desc()).limit(20)).all()
+    active_alerts = MaintenanceAlertService.get_active_maintenance_alerts(session, vehicle_id=v_id) if v_id else []
 
     return templates.TemplateResponse(
         request=request,
@@ -245,6 +278,7 @@ def render_dashboard(
             "reference_docs": reference_docs,
             "knowledge_records": knowledge_records,
             "notifications": notifications,
+            "active_alerts": active_alerts,
             "usage_stats": usage_stats,
         }
     )

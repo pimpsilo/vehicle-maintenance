@@ -922,6 +922,48 @@
                     </div>
                 </div>
 
+                {% if active_alerts %}
+                <div class="card" style="margin-bottom: 24px; padding: 18px 20px; border-left: 5px solid {% if active_alerts[0].severity == 'CRITICAL' %}#ef4444{% elif active_alerts[0].severity == 'WARNING' %}#f59e0b{% else %}#3b82f6{% endif %}; background: {% if active_alerts[0].severity == 'CRITICAL' %}#fef2f2{% elif active_alerts[0].severity == 'WARNING' %}#fffbeb{% else %}#eff6ff{% endif %};">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; flex-wrap: wrap; gap: 8px;">
+                        <div style="display: flex; align-items: center; gap: 10px;">
+                            <span style="font-size: 1.4rem;">{% if active_alerts[0].severity == 'CRITICAL' %}🚨{% elif active_alerts[0].severity == 'WARNING' %}⚠️{% else %}ℹ️{% endif %}</span>
+                            <div style="font-weight: 700; font-size: 1.05rem; color: {% if active_alerts[0].severity == 'CRITICAL' %}#991b1b{% elif active_alerts[0].severity == 'WARNING' %}#92400e{% else %}#1e40af{% endif %};">
+                                Active Maintenance Alerts ({{ active_alerts | length }})
+                            </div>
+                        </div>
+                        <div style="display: flex; gap: 6px;">
+                            <button type="button" class="btn btn-sm btn-outline" onclick="triggerAlertEvaluation()" style="background: white; font-size: 0.8rem; cursor: pointer;">
+                                🔄 Re-check Alerts
+                            </button>
+                        </div>
+                    </div>
+                    <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 12px;">
+                        {% for a in active_alerts %}
+                        <div style="background: #ffffff; border: 1px solid rgba(0,0,0,0.08); border-radius: 8px; padding: 12px 14px; box-shadow: 0 1px 3px rgba(0,0,0,0.04);">
+                            <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 6px;">
+                                <span style="font-weight: 700; font-size: 0.92rem; color: var(--primary);">{{ a.service_name }}</span>
+                                {% if a.severity == 'CRITICAL' %}
+                                <span class="badge" style="background: #fee2e2; color: #991b1b; font-weight: 700;">OVERDUE</span>
+                                {% elif a.severity == 'WARNING' %}
+                                <span class="badge" style="background: #fef3c7; color: #92400e; font-weight: 700;">{{ a.status | replace('_', ' ') }}</span>
+                                {% else %}
+                                <span class="badge" style="background: #dbeafe; color: #1e40af; font-weight: 700;">ADVANCE NOTICE</span>
+                                {% endif %}
+                            </div>
+                            <div style="font-size: 0.82rem; color: #475569; margin-bottom: 8px;">{{ a.message }}</div>
+                            <div style="height: 6px; width: 100%; background: #e2e8f0; border-radius: 9999px; overflow: hidden; margin-bottom: 4px;">
+                                <div style="height: 100%; width: {{ [a.progress_pct, 100.0] | min }}%; background: {% if a.severity == 'CRITICAL' %}#ef4444{% elif a.severity == 'WARNING' %}#f59e0b{% else %}#3b82f6{% endif %};"></div>
+                            </div>
+                            <div style="display: flex; justify-content: space-between; font-size: 0.75rem; color: var(--text-muted);">
+                                <span>Target: {{ "{:,}".format(a.next_due_mileage) }} mi</span>
+                                <span>{{ a.progress_pct | round(0) }}% consumed</span>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+                {% endif %}
+
                 <div class="stats-grid">
                     <div class="stat-card">
                         <div class="label">Odometer Reading</div>
@@ -936,7 +978,7 @@
                         <div class="label">Upcoming Service Due</div>
                         {% if forecasts and forecasts|length > 0 %}
                         <div class="value" style="font-size: 1.15rem; margin-top: 8px;">{{ forecasts[0].service_name }}</div>
-                        <div class="sub">
+                        <div class="sub" style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin-top: 4px;">
                             {% if forecasts[0].status.value == 'OVERDUE' %}
                             <span class="badge badge-overdue">OVERDUE ({{ forecasts[0].miles_remaining }} mi)</span>
                             {% elif forecasts[0].status.value == 'DUE_SOON' %}
@@ -944,6 +986,14 @@
                             {% else %}
                             <span class="badge badge-ok">OK ({{ forecasts[0].miles_remaining }} mi left)</span>
                             {% endif %}
+                            <span style="font-size: 0.78rem; color: var(--text-muted);">~{{ forecasts[0].next_due_date.strftime('%b %d, %Y') }} ({{ forecasts[0].days_remaining }}d)</span>
+                        </div>
+                        <div style="width: 100%; height: 5px; background: #e2e8f0; border-radius: 999px; overflow: hidden; margin-top: 8px;">
+                            <div style="height: 100%; width: {{ forecasts[0].mileage_progress_pct }}%; background: {% if forecasts[0].status.value == 'OVERDUE' %}#ef4444{% elif forecasts[0].status.value == 'DUE_SOON' %}#f59e0b{% else %}#10b981{% endif %}; border-radius: 999px;"></div>
+                        </div>
+                        <div style="display: flex; justify-content: space-between; font-size: 0.72rem; color: var(--text-muted); margin-top: 4px;">
+                            <span>{{ forecasts[0].mileage_progress_pct }}% interval used</span>
+                            <span>Dominant: {{ forecasts[0].dominant_threshold|lower }} pace</span>
                         </div>
                         {% else %}
                         <div class="value" style="font-size: 1.15rem;">All Services Up to Date</div>
@@ -1088,7 +1138,10 @@
                 <div class="card">
                     <div class="card-header">
                         <div class="card-title">🛠️ Next Due Maintenance Services</div>
-                        <button class="btn btn-sm" onclick="switchTab('maintenance')">+ Log Service</button>
+                        <div style="display: flex; gap: 8px;">
+                            <button type="button" class="btn btn-sm btn-outline" onclick="openDashboardOilModal({{ active_vehicle.id }}, '{{ active_vehicle.year }} {{ active_vehicle.make|replace("'", "\\'") }} {{ active_vehicle.model|replace("'", "\\'") }}')">⚙️ Oil Baseline / Interval</button>
+                            <button class="btn btn-sm" onclick="switchTab('maintenance')">+ Log Service</button>
+                        </div>
                     </div>
                     <div class="table-responsive">
                         <table>
@@ -1096,6 +1149,7 @@
                                 <tr>
                                     <th>Service Name</th>
                                     <th>Interval</th>
+                                    <th>% Consumed</th>
                                     <th>Next Due Mileage</th>
                                     <th>Miles Remaining</th>
                                     <th>Projected Due Date</th>
@@ -1105,9 +1159,22 @@
                             </thead>
                             <tbody>
                                 {% for f in forecasts %}
-                                <tr>
-                                    <td style="font-weight: 600;">{{ f.service_name }}</td>
+                                <tr {% if f.is_next_required %}style="background: #f0fdf4; border-left: 4px solid #10b981;"{% endif %}>
+                                    <td style="font-weight: 600;">
+                                        {{ f.service_name }}
+                                        {% if f.is_next_required %}
+                                        <span class="badge" style="background: #10b981; color: white; font-size: 0.68rem; margin-left: 6px;">NEXT DUE</span>
+                                        {% endif %}
+                                    </td>
                                     <td>{{ "{:,}".format(f.interval_miles) }} mi / {{ f.interval_months }} mo</td>
+                                    <td>
+                                        <div style="display: flex; align-items: center; gap: 8px;">
+                                            <div style="width: 65px; height: 6px; background: #e2e8f0; border-radius: 999px; overflow: hidden;">
+                                                <div style="height: 100%; width: {{ f.mileage_progress_pct }}%; background: {% if f.status.value == 'OVERDUE' %}#ef4444{% elif f.status.value == 'DUE_SOON' %}#f59e0b{% else %}#10b981{% endif %}; border-radius: 999px;"></div>
+                                            </div>
+                                            <span style="font-size: 0.8rem; font-weight: 600;">{{ f.mileage_progress_pct }}%</span>
+                                        </div>
+                                    </td>
                                     <td>{{ "{:,}".format(f.next_due_mileage) }} mi</td>
                                     <td>{{ "{:,}".format(f.miles_remaining) }} mi</td>
                                     <td>{{ f.projected_due_date_by_mileage.strftime('%b %d, %Y') }}</td>
@@ -2134,14 +2201,20 @@
                 </div>
 
                 <div class="card">
-                    <div class="card-header">
+                    <div class="card-header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
                         <div class="card-title">Recent Notification & Dispatch History</div>
+                        <div style="display: flex; gap: 8px;">
+                            <button type="button" class="btn btn-sm btn-outline" onclick="triggerAlertEvaluation()" style="font-size: 0.8rem; cursor: pointer;">
+                                🔄 Evaluate Maintenance Alerts
+                            </button>
+                        </div>
                     </div>
                     <div class="table-responsive">
                         <table>
                             <thead>
                                 <tr>
                                     <th>Timestamp</th>
+                                    <th>Severity</th>
                                     <th>Event Type</th>
                                     <th>Title</th>
                                     <th>Message</th>
@@ -2152,6 +2225,15 @@
                                 {% for n in notifications %}
                                 <tr>
                                     <td>{{ n.created_at.strftime('%b %d, %H:%M') }}</td>
+                                    <td>
+                                        {% if n.severity == 'CRITICAL' %}
+                                        <span class="badge" style="background: #fee2e2; color: #991b1b; font-weight: 700;">CRITICAL</span>
+                                        {% elif n.severity == 'WARNING' %}
+                                        <span class="badge" style="background: #fef3c7; color: #92400e; font-weight: 700;">WARNING</span>
+                                        {% else %}
+                                        <span class="badge" style="background: #dbeafe; color: #1e40af; font-weight: 700;">INFO</span>
+                                        {% endif %}
+                                    </td>
                                     <td><span class="badge badge-planned">{{ n.event_type }}</span></td>
                                     <td style="font-weight: 600;">{{ n.title }}</td>
                                     <td style="font-size: 0.85rem;">{{ n.message }}</td>
@@ -2159,7 +2241,7 @@
                                 </tr>
                                 {% else %}
                                 <tr>
-                                    <td colspan="5" style="text-align: center; color: var(--text-muted);">No notification logs recorded yet.</td>
+                                    <td colspan="6" style="text-align: center; color: var(--text-muted);">No notification logs recorded yet.</td>
                                 </tr>
                                 {% endfor %}
                             </tbody>
@@ -3309,6 +3391,23 @@
             }
         }
 
+        async function triggerAlertEvaluation() {
+            showToast('Evaluating planned maintenance alerts...');
+            try {
+                const res = await fetch('/api/v1/notifications/evaluate-all?bypass_cooldown=true', { method: 'POST' });
+                if (res.ok) {
+                    const data = await res.json();
+                    const total = data.result ? data.result.total_notifications_dispatched : 0;
+                    showToast(`Alert evaluation complete! Dispatched: ${total}`);
+                    setTimeout(() => window.location.reload(), 700);
+                } else {
+                    alert('Failed to evaluate maintenance alerts');
+                }
+            } catch (err) {
+                alert('Error evaluating alerts: ' + err.message);
+            }
+        }
+
         async function sendTestNotification() {
             const res = await fetch('/api/v1/notifications/test', { method: 'POST' });
             if (res.ok) {
@@ -3502,6 +3601,132 @@
             const savedTab = hash || sessionStorage.getItem('activeTab') || 'overview';
             switchTab(savedTab);
         });
+
+        /* --- Dashboard Oil Config Modal JS --- */
+        async function openDashboardOilModal(vId, vName) {
+            document.getElementById('dashOilModalVehicleId').value = vId;
+            document.getElementById('dashOilModalVehicleSubtitle').innerText = `Configuration for ${vName}`;
+            document.getElementById('dashOilModalSpec').innerText = 'Loading spec...';
+            document.getElementById('dashboardOilModal').style.display = 'flex';
+
+            try {
+                const res = await fetch(`/api/v1/maintenance/vehicle/${vId}/oil-config`);
+                if (res.ok) {
+                    const data = await res.json();
+                    document.getElementById('dashOilModalSpec').innerText = (data.oil_specification || 'Standard Synthetic') + (data.oil_part_number ? ` (OEM: ${data.oil_part_number})` : '');
+                    if (data.last_completed_date) {
+                        document.getElementById('dashOilCompletedDate').value = data.last_completed_date;
+                    }
+                    if (data.last_completed_mileage) {
+                        document.getElementById('dashOilCompletedMileage').value = data.last_completed_mileage;
+                    } else {
+                        document.getElementById('dashOilCompletedMileage').value = data.current_mileage;
+                    }
+                    document.getElementById('dashOilIntervalMiles').value = data.interval_miles || 7500;
+                    document.getElementById('dashOilIntervalMonths').value = data.interval_months || 12;
+                }
+            } catch (e) {
+                console.error('Error fetching oil config:', e);
+            }
+        }
+
+        function closeDashboardOilModal() {
+            document.getElementById('dashboardOilModal').style.display = 'none';
+        }
+
+        function closeDashboardOilModalOnBackdrop(e) {
+            if (e.target.id === 'dashboardOilModal') {
+                closeDashboardOilModal();
+            }
+        }
+
+        async function submitDashboardOilConfig(e) {
+            e.preventDefault();
+            const form = e.target;
+            const vId = parseInt(form.vehicle_id.value);
+            const payload = {
+                vehicle_id: vId,
+                completed_date: form.completed_date.value || null,
+                completed_mileage: form.completed_mileage.value ? parseInt(form.completed_mileage.value) : null,
+                interval_miles: parseInt(form.interval_miles.value),
+                interval_months: parseInt(form.interval_months.value),
+                notes: form.notes.value.trim() || null,
+            };
+
+            showToast('Saving oil interval & recalculating...');
+            try {
+                const res = await fetch(`/api/v1/maintenance/vehicle/${vId}/oil-config`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                if (res.ok) {
+                    showToast('Oil change interval and baseline updated!');
+                    closeDashboardOilModal();
+                    setTimeout(() => window.location.reload(), 600);
+                } else {
+                    const err = await res.json();
+                    alert(err.detail || 'Failed to update oil config');
+                }
+            } catch (err) {
+                alert('Error updating oil interval: ' + err.message);
+            }
+        }
     </script>
+
+    <!-- Dashboard Oil Config Modal -->
+    <div id="dashboardOilModal" class="modal-backdrop" onclick="closeDashboardOilModalOnBackdrop(event)" style="display: none;">
+        <div class="modal-content" style="max-width: 520px; border-radius: 12px; padding: 0; overflow: hidden; background: #ffffff;">
+            <div class="modal-header" style="padding: 16px 20px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center;">
+                <div>
+                    <h3 style="margin: 0; font-size: 1.15rem; color: var(--primary);">🛢️ Oil Change Interval & Baseline</h3>
+                    <div id="dashOilModalVehicleSubtitle" style="font-size: 0.82rem; color: var(--text-muted); margin-top: 2px;">Vehicle Configuration</div>
+                </div>
+                <button type="button" class="btn-close" onclick="closeDashboardOilModal()" style="border: none; background: none; font-size: 1.2rem; cursor: pointer;">✕</button>
+            </div>
+            <form id="dashOilConfigForm" onsubmit="submitDashboardOilConfig(event)">
+                <input type="hidden" id="dashOilModalVehicleId" name="vehicle_id">
+                <div style="padding: 20px;">
+                    <div style="background: #f8fafc; border: 1px solid var(--border); border-radius: 8px; padding: 12px; margin-bottom: 16px; font-size: 0.85rem;">
+                        <div style="font-weight: 700; color: var(--text-main); margin-bottom: 4px;">Recommended Engine Oil Spec:</div>
+                        <div id="dashOilModalSpec" style="color: var(--accent); font-family: monospace; font-size: 0.88rem;">Loading spec...</div>
+                    </div>
+                    <div class="form-group" style="margin-bottom: 14px;">
+                        <label for="dashOilCompletedDate" style="display: block; font-size: 0.85rem; font-weight: 600; margin-bottom: 6px;">Last Completed Date</label>
+                        <input type="date" id="dashOilCompletedDate" name="completed_date" style="width: 100%; padding: 8px 12px; border: 1px solid var(--border); border-radius: 8px; font-size: 0.9rem;">
+                    </div>
+                    <div class="form-group" style="margin-bottom: 14px;">
+                        <label for="dashOilCompletedMileage" style="display: block; font-size: 0.85rem; font-weight: 600; margin-bottom: 6px;">Last Completed Mileage</label>
+                        <input type="number" id="dashOilCompletedMileage" name="completed_mileage" style="width: 100%; padding: 8px 12px; border: 1px solid var(--border); border-radius: 8px; font-size: 0.9rem;">
+                    </div>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 14px;">
+                        <div class="form-group">
+                            <label for="dashOilIntervalMiles" style="display: block; font-size: 0.85rem; font-weight: 600; margin-bottom: 6px;">Mileage Interval</label>
+                            <select id="dashOilIntervalMiles" name="interval_miles" style="width: 100%; padding: 8px 12px; border: 1px solid var(--border); border-radius: 8px; font-size: 0.88rem;">
+                                <option value="5000">5,000 miles (Severe / Turbo)</option>
+                                <option value="7500">7,500 miles (Standard Factory)</option>
+                                <option value="10000">10,000 miles (Extended Synthetic)</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="dashOilIntervalMonths" style="display: block; font-size: 0.85rem; font-weight: 600; margin-bottom: 6px;">Time Interval</label>
+                            <select id="dashOilIntervalMonths" name="interval_months" style="width: 100%; padding: 8px 12px; border: 1px solid var(--border); border-radius: 8px; font-size: 0.88rem;">
+                                <option value="6">6 Months</option>
+                                <option value="12" selected>12 Months</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label for="dashOilNotes" style="display: block; font-size: 0.85rem; font-weight: 600; margin-bottom: 6px;">Notes / Brand / Filter Used</label>
+                        <input type="text" id="dashOilNotes" name="notes" placeholder="e.g. Mobil 1 0W-20 & OEM Filter" style="width: 100%; padding: 8px 12px; border: 1px solid var(--border); border-radius: 8px; font-size: 0.88rem;">
+                    </div>
+                </div>
+                <div style="display: flex; justify-content: flex-end; gap: 8px; padding: 14px 20px; border-top: 1px solid var(--border); background: #f8fafc;">
+                    <button type="button" class="btn btn-outline" onclick="closeDashboardOilModal()">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Save & Recalculate</button>
+                </div>
+            </form>
+        </div>
+    </div>
 </body>
 </html>

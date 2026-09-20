@@ -168,3 +168,30 @@ def test_vehicle_photo_upload_and_lifecycle(client: TestClient, sample_vehicle: 
     # 5. Confirm photo is gone
     check_res = client.get(f"/api/v1/vehicles/{sample_vehicle.id}/photo")
     assert check_res.status_code == 404
+
+def test_odometer_update_triggers_alert_evaluation(client: TestClient, sample_vehicle: Vehicle, session: Session):
+    from app.models.maintenance import ServiceDefinition
+    # Configure an interval due at 105,000 miles
+    sd = ServiceDefinition(
+        service_name="Scheduled Checkup",
+        interval_miles=5000,
+        interval_months=6,
+        vehicle_id=sample_vehicle.id,
+    )
+    session.add(sd)
+    session.commit()
+
+    # Post new odometer reading that puts vehicle overdue (106,000 mi)
+    res = client.post(
+        f"/api/v1/vehicles/{sample_vehicle.id}/odometer",
+        json={"current_mileage": 106000}
+    )
+    assert res.status_code == 200
+
+    # Verify that an alert was generated and logged
+    alerts_res = client.get(f"/api/v1/notifications/alerts?vehicle_id={sample_vehicle.id}")
+    assert alerts_res.status_code == 200
+    alerts = alerts_res.json()
+    assert len(alerts) >= 1
+    assert any(a["service_name"] == "Scheduled Checkup" and a["severity"] == "CRITICAL" for a in alerts)
+

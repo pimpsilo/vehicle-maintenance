@@ -18,7 +18,9 @@ from app.models.calendar_sync import (
 )
 from app.models.document import VehicleDocument
 from app.models.external_service import ExternalServiceOrder, ServiceShop, WorkOrderStatus
+from app.models.maintenance import MaintenanceForecast, ServiceStatus
 from app.models.vehicle import Vehicle
+from app.services.interval_engine import MaintenanceIntervalEngine
 from app.config import settings, get_utc_now
 
 logger = logging.getLogger(__name__)
@@ -212,6 +214,52 @@ class GoogleCalendarService:
         )
 
     @staticmethod
+    def build_maintenance_due_event(
+        vehicle: Vehicle,
+        forecast: MaintenanceForecast,
+    ) -> GoogleCalendarEventPayload:
+        """
+        Builds an all-day calendar event payload with 14-day and 2-day reminder popups
+        for a scheduled/projected maintenance interval deadline.
+        """
+        summary = f"Maintenance Due: {vehicle.year} {vehicle.model} - {forecast.service_name}"
+        target_date = forecast.next_due_date or forecast.projected_due_date_by_mileage or (date.today() + timedelta(days=7))
+        start_time = datetime.combine(target_date, datetime.min.time(), tzinfo=timezone.utc)
+        end_time = datetime.combine(target_date + timedelta(days=1), datetime.min.time(), tzinfo=timezone.utc)
+
+        last_comp = "Not recorded"
+        if forecast.last_completed_date:
+            last_comp = forecast.last_completed_date.strftime('%b %d, %Y')
+            if forecast.last_completed_mileage:
+                last_comp += f" @ {forecast.last_completed_mileage:,} mi"
+
+        description = (
+            f"Planned Maintenance Due Notice\n\n"
+            f"Vehicle: {vehicle.year} {vehicle.make} {vehicle.model} (Odometer: {vehicle.current_mileage:,} mi)\n"
+            f"Service: {forecast.service_name}\n"
+            f"Status: {forecast.status.value}\n"
+            f"Target Due Mileage: {forecast.next_due_mileage:,} mi ({forecast.miles_remaining:,} mi remaining)\n"
+            f"Projected Due Date: {target_date.strftime('%B %d, %Y')}\n"
+            f"Last Completed: {last_comp}\n"
+            f"Interval: Every {forecast.interval_miles:,} mi / {forecast.interval_months} mo"
+        )
+
+        reminders = [
+            CalendarReminderOverride(method="popup", minutes=14 * 24 * 60),  # 14 days prior
+            CalendarReminderOverride(method="popup", minutes=2 * 24 * 60),   # 2 days prior
+        ]
+
+        return GoogleCalendarEventPayload(
+            summary=summary,
+            description=description,
+            location="Garage / Service Center",
+            start_time=start_time,
+            end_time=end_time,
+            is_all_day=True,
+            reminder_overrides=reminders,
+        )
+
+    @staticmethod
     def push_to_google_calendar_api(
         payload: GoogleCalendarEventPayload,
         existing_google_event_id: Optional[str] = None
@@ -342,14 +390,17 @@ class GoogleCalendarService:
     @staticmethod
     def sync_all_upcoming(session: Session) -> Dict[str, Any]:
         """
-        Synchronizes all active vehicle documents and scheduled service orders to Google Calendar.
+        Synchronizes all active vehicle documents, scheduled service orders,
+        and planned maintenance deadlines to Google Calendar.
         """
         vehicles = session.exec(select(Vehicle)).all()
         synced_docs = 0
         synced_orders = 0
+        synced_maintenance = 0
+        cutoff_date = date.today() + timedelta(days=60)
 
         for v in vehicles:
-            # Sync Documents
+            # 1. Sync Documents
             docs = session.exec(select(VehicleDocument).where(VehicleDocument.vehicle_id == v.id)).all()
             for d in docs:
                 payload = GoogleCalendarService.build_document_renewal_event(v, d)
@@ -362,7 +413,7 @@ class GoogleCalendarService:
                 )
                 synced_docs += 1
 
-            # Sync Service Orders
+            # 2. Sync Service Orders
             orders = session.exec(
                 select(ExternalServiceOrder).where(
                     ExternalServiceOrder.vehicle_id == v.id,
@@ -386,10 +437,31 @@ class GoogleCalendarService:
                 )
                 synced_orders += 1
 
+            # 3. Sync Planned Maintenance Milestones
+            try:
+                forecasts = MaintenanceIntervalEngine.calculate_forecasts(session, vehicle_id=v.id)
+                for f in forecasts:
+                    is_urgent = f.status in (ServiceStatus.OVERDUE, ServiceStatus.DUE_SOON)
+                    is_upcoming = f.next_due_date is not None and f.next_due_date <= cutoff_date
+                    if is_urgent or is_upcoming:
+                        payload = GoogleCalendarService.build_maintenance_due_event(v, f)
+                        GoogleCalendarService.sync_event_to_google(
+                            session=session,
+                            vehicle_id=v.id,
+                            entity_type=SyncEntityType.MAINTENANCE_DUE,
+                            entity_id=f.service_definition_id,
+                            payload=payload,
+                        )
+                        synced_maintenance += 1
+            except Exception as e:
+                logger.error(f"Error syncing maintenance intervals for vehicle {v.id}: {e}")
+
+        total_synced = synced_docs + synced_orders + synced_maintenance
         return {
             "synced_documents": synced_docs,
             "synced_orders": synced_orders,
-            "total_synced": synced_docs + synced_orders,
+            "synced_maintenance": synced_maintenance,
+            "total_synced": total_synced,
             "is_live": GoogleCalendarService.is_connected(),
         }
 
